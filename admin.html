@@ -416,6 +416,13 @@
 
     <div class="topbar">
       <div class="topbar-left">
+        <div class="form-group" style="min-width:220px;">
+          <label style="font-size:11px;">Event</label>
+          <select id="event-select" style="width:100%;"></select>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="openCreateEventPrompt()">+ Event ใหม่</button>
+        <button class="btn btn-outline btn-sm" onclick="setActiveEvent(state.currentEventId)">ตั้งเป็น Event ปัจจุบัน</button>
+        <button class="btn btn-outline btn-sm" onclick="copyEventLink()">คัดลอกลิงก์</button>
         <div>
           <div class="topbar-title" id="panel-title">🎁 ของรางวัล</div>
           <div class="topbar-sub" id="panel-sub">จัดการของรางวัล + ดูจำนวนคงเหลือแบบ real-time</div>
@@ -615,6 +622,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabaseClient.js"></script>
 <script src="js/sessionGuard.js"></script>
+<script src="js/eventLink.js"></script>
 <script src="wheelConfig.js"></script>
 <script>
 // ══════════════════════════════════════════════════════════
@@ -624,6 +632,7 @@ const PALETTE = ['#f9c74f','#4cc9f0','#43aa8b','#f94144','#9b5de5','#ff6b35','#0
 
 let state = {
   prizes: [],
+  currentEventId: null,
   general: {},
   remaining: {},     // { prizeId: count }
   eventName: '',     // ชื่องาน Event
@@ -696,11 +705,76 @@ supabase.auth.onAuthStateChange((event) => {
   }
 });
 
+async function loadEventList() {
+  const { data, error } = await supabase.from('events').select('id, name, slug, is_active').order('created_at', { ascending: false });
+  if (error) { console.error('Error loading events:', error); return; }
+
+  const select = document.getElementById('event-select');
+  select.innerHTML = data.map(ev =>
+    `<option value="${ev.id}" data-slug="${ev.slug}">${ev.name}${ev.is_active ? ' (ปัจจุบัน)' : ''}</option>`
+  ).join('');
+
+  if (!state.currentEventId && data.length > 0) {
+    state.currentEventId = data[0].id;
+  }
+  if (state.currentEventId) select.value = state.currentEventId;
+}
+
+async function selectEvent(eventId) {
+  state.currentEventId = eventId;
+  await loadFromServer();
+  if (typeof loadRegistrations === 'function') await loadRegistrations();
+}
+
+async function openCreateEventPrompt() {
+  const name = prompt('ชื่อ Event ใหม่:');
+  if (!name) return;
+  const slug = prompt('Slug (ใช้ใน URL เช่น belden-roadshow-2026):', name.toLowerCase().replace(/\s+/g, '-'));
+  if (!slug) return;
+  await createEvent(name, slug);
+}
+
+async function createEvent(name, slug) {
+  const defaultConfig = {
+    prizes: [], formFields: getDefaultFormFields(),
+    brandsCheckbox: { enabled: false, items: [] }, pdpa: { enabled: false },
+    wheel: { fontSize: 13, fontFamily: "'Kanit', sans-serif", centerCircleColor: '#162c3b', centerCircleBorderColor: '#ffd700', textRadiusRatio: 0.8, iconGap: 28 },
+    spin: { minRotations: 5, maxRotations: 10, durationMs: 5000 },
+  };
+
+  const { data, error } = await supabase.from('events').insert({ name, slug, config: defaultConfig }).select().single();
+  if (error) { toast('สร้าง Event ไม่สำเร็จ: ' + error.message, 'err'); return; }
+
+  await loadEventList();
+  await selectEvent(data.id);
+  toast('สร้าง Event สำเร็จ', 'ok');
+}
+
+async function setActiveEvent(eventId) {
+  if (!eventId) return;
+  await supabase.from('events').update({ is_active: false }).neq('id', eventId);
+  const { error } = await supabase.from('events').update({ is_active: true }).eq('id', eventId);
+  if (error) { toast('ตั้ง Event ปัจจุบันไม่สำเร็จ: ' + error.message, 'err'); return; }
+  await loadEventList();
+  toast('ตั้งเป็น Event ปัจจุบันแล้ว', 'ok');
+}
+
+function copyEventLink() {
+  const select = document.getElementById('event-select');
+  const slug = select.selectedOptions[0]?.dataset.slug;
+  if (!slug) return;
+  const url = buildEventUrl(location.origin, slug);
+  navigator.clipboard.writeText(url);
+  toast('คัดลอกลิงก์แล้ว: ' + url, 'ok');
+}
+
 async function init() {
   const authed = await requireAuth();
   if (!authed) return;
 
   setupNav();
+  await loadEventList();
+  document.getElementById('event-select').addEventListener('change', (e) => selectEvent(e.target.value));
   await loadFromServer();
   startAutoRefresh();
 }
@@ -741,7 +815,8 @@ async function loadFromServer() {
   
   try {
     // Load config
-    const config = await loadConfigFromServer();
+    if (!state.currentEventId) { showLoading(false); return; }
+    const config = await loadEventConfigById(state.currentEventId);
     
     if (config) {
       state.prizes         = config.prizes || WHEEL_CONFIG.prizes || [];
@@ -852,7 +927,7 @@ async function saveToServer() {
       }
     };
     
-    const success = await saveConfigToServer(config);
+    const success = await saveConfigToServer(state.currentEventId, config);
     
     if (success) {
       setSyncStatus('success', 'บันทึกสำเร็จ');
