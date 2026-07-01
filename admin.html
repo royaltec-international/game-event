@@ -456,6 +456,7 @@
           <button class="btn btn-outline btn-sm" onclick="applyRegFilter()">กรอง</button>
           <button class="btn btn-outline btn-sm" onclick="clearRegFilter()">ล้างตัวกรอง</button>
           <button class="btn btn-outline btn-sm" style="color:var(--danger);border-color:var(--danger);" onclick="deleteSelectedRegistrations()">ลบที่เลือก</button>
+          <button class="btn btn-primary btn-sm" onclick="exportRegistrationsToExcel()">Export Excel</button>
         </div>
         <div class="total-strip">
           <div><div class="total-lbl">จำนวนผู้ลงทะเบียน (ตามตัวกรอง)</div><div class="total-val" id="reg-total">0</div></div>
@@ -658,6 +659,8 @@
 <script src="js/sessionGuard.js"></script>
 <script src="js/eventLink.js"></script>
 <script src="js/dateRangeFilter.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="js/exportRows.js"></script>
 <script src="wheelConfig.js"></script>
 <script>
 // ══════════════════════════════════════════════════════════
@@ -880,6 +883,23 @@ async function deleteSelectedRegistrations() {
   state.registrations = state.registrations.filter(r => !ids.includes(r.id));
   renderRegistrationsTable(regFilteredRows.filter(r => !ids.includes(r.id)));
   toast(`ลบสำเร็จ ${ids.length} รายการ`, 'ok');
+}
+
+function exportRegistrationsToExcel() {
+  if (regFilteredRows.length === 0) {
+    toast('ไม่มีข้อมูลให้ export (ตามตัวกรองปัจจุบัน)', 'err');
+    return;
+  }
+
+  const eventName = document.getElementById('event-select').selectedOptions[0]?.textContent || '';
+  const rows = buildExportRows(regFilteredRows, eventName);
+
+  const worksheet = XLSX.utils.json_to_sheet(rows);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Registrations');
+
+  const filename = `registrations-${eventName.replace(/[^a-zA-Z0-9ก-๙]+/g, '-')}-${new Date().toISOString().slice(0, 10)}.xlsx`;
+  XLSX.writeFile(workbook, filename);
 }
 
 function subscribeRegistrations() {
