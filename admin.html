@@ -357,6 +357,16 @@
       background: rgba(88,166,255,0.06); border: 1px solid rgba(88,166,255,0.2);
       font-size: 12px; color: #58a6ff; line-height: 1.55;
     }
+  .login-gate {
+    position: fixed; inset: 0; z-index: 200;
+    background: var(--bg); display: flex; align-items: center; justify-content: center;
+  }
+  .login-card {
+    width: 320px; padding: 28px; background: var(--surface);
+    border: 1px solid var(--border); border-radius: var(--radius);
+    display: flex; flex-direction: column; gap: 14px;
+  }
+  .login-card h2 { font-size: 18px; margin-bottom: 4px; }
   </style>
 </head>
 <body>
@@ -365,7 +375,17 @@
   <div class="spinner"></div>
 </div>
 
-<div class="layout">
+<div class="login-gate" id="login-gate" style="display:none;">
+  <form id="login-form" class="login-card">
+    <h2>เข้าสู่ระบบ Admin</h2>
+    <div class="form-group"><label>อีเมล</label><input type="email" id="login-email" required autocomplete="username" /></div>
+    <div class="form-group"><label>รหัสผ่าน</label><input type="password" id="login-password" required autocomplete="current-password" /></div>
+    <div class="field-error" id="login-error"></div>
+    <button type="submit" class="btn btn-primary" style="width:100%;">เข้าสู่ระบบ</button>
+  </form>
+</div>
+
+<div class="layout" id="app-layout" style="display:none;">
 
   <!-- ═══ SIDEBAR ═══ -->
   <nav class="sidebar">
@@ -594,6 +614,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabaseClient.js"></script>
+<script src="js/sessionGuard.js"></script>
 <script src="wheelConfig.js"></script>
 <script>
 // ══════════════════════════════════════════════════════════
@@ -637,7 +658,48 @@ let syncTimer = null;
 // ══════════════════════════════════════════════════════════
 //  Init
 // ══════════════════════════════════════════════════════════
+async function requireAuth() {
+  const { data: { session } } = await supabase.auth.getSession();
+
+  if (!hasValidSession(session)) {
+    document.getElementById('login-gate').style.display = 'flex';
+    document.getElementById('app-layout').style.display = 'none';
+    return false;
+  }
+
+  document.getElementById('login-gate').style.display = 'none';
+  document.getElementById('app-layout').style.display = 'flex';
+  return true;
+}
+
+document.getElementById('login-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  const errEl = document.getElementById('login-error');
+  errEl.textContent = '';
+
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) {
+    errEl.textContent = 'อีเมลหรือรหัสผ่านไม่ถูกต้อง';
+    return;
+  }
+
+  const ok = await requireAuth();
+  if (ok) await init();
+});
+
+supabase.auth.onAuthStateChange((event) => {
+  if (event === 'SIGNED_OUT') {
+    document.getElementById('login-gate').style.display = 'flex';
+    document.getElementById('app-layout').style.display = 'none';
+  }
+});
+
 async function init() {
+  const authed = await requireAuth();
+  if (!authed) return;
+
   setupNav();
   await loadFromServer();
   startAutoRefresh();
