@@ -450,19 +450,28 @@
 
       <!-- ── REGISTRATIONS ── -->
       <div id="panel-registrations" class="panel">
+        <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px;">
+          <div class="form-group"><label>ตั้งแต่วันที่</label><input type="date" id="reg-filter-start" /></div>
+          <div class="form-group"><label>ถึงวันที่</label><input type="date" id="reg-filter-end" /></div>
+          <button class="btn btn-outline btn-sm" onclick="applyRegFilter()">กรอง</button>
+          <button class="btn btn-outline btn-sm" onclick="clearRegFilter()">ล้างตัวกรอง</button>
+          <button class="btn btn-outline btn-sm" style="color:var(--danger);border-color:var(--danger);" onclick="deleteSelectedRegistrations()">ลบที่เลือก</button>
+        </div>
         <div class="total-strip">
-          <div><div class="total-lbl">จำนวนผู้ลงทะเบียนทั้งหมด</div><div class="total-val" id="reg-total">0</div></div>
+          <div><div class="total-lbl">จำนวนผู้ลงทะเบียน (ตามตัวกรอง)</div><div class="total-val" id="reg-total">0</div></div>
         </div>
         <div style="overflow-x:auto;margin-top:14px;">
           <table style="width:100%;border-collapse:collapse;font-size:13px;">
             <thead>
               <tr style="text-align:left;border-bottom:1px solid var(--border);">
+                <th style="padding:8px;"><input type="checkbox" id="reg-select-all" onclick="toggleSelectAll(this.checked)" /></th>
                 <th style="padding:8px;">เวลา</th>
                 <th style="padding:8px;">ชื่อ</th>
                 <th style="padding:8px;">นามสกุล</th>
                 <th style="padding:8px;">อีเมล</th>
                 <th style="padding:8px;">เบอร์โทร</th>
                 <th style="padding:8px;">ของรางวัล</th>
+                <th style="padding:8px;"></th>
               </tr>
             </thead>
             <tbody id="reg-table-body"></tbody>
@@ -648,6 +657,7 @@
 <script src="supabaseClient.js"></script>
 <script src="js/sessionGuard.js"></script>
 <script src="js/eventLink.js"></script>
+<script src="js/dateRangeFilter.js"></script>
 <script src="wheelConfig.js"></script>
 <script>
 // ══════════════════════════════════════════════════════════
@@ -812,18 +822,64 @@ async function loadRegistrations() {
   subscribeRegistrations();
 }
 
+let regFilteredRows = [];
+
 function renderRegistrationsTable(rows) {
+  regFilteredRows = rows;
   document.getElementById('reg-total').textContent = rows.length;
   document.getElementById('reg-table-body').innerHTML = rows.map(r => `
     <tr style="border-bottom:1px solid var(--border);" data-id="${r.id}">
+      <td style="padding:8px;"><input type="checkbox" class="reg-row-check" value="${r.id}" /></td>
       <td style="padding:8px;">${esc(new Date(r.created_at).toLocaleString('th-TH'))}</td>
       <td style="padding:8px;">${esc(r.first_name)}</td>
       <td style="padding:8px;">${esc(r.last_name)}</td>
       <td style="padding:8px;">${esc(r.email)}</td>
       <td style="padding:8px;">${esc(r.phone)}</td>
       <td style="padding:8px;">${esc(r.prize_label)}</td>
+      <td style="padding:8px;"><button class="btn btn-outline btn-sm" style="color:var(--danger);border-color:var(--danger);" onclick="deleteRegistration('${r.id}')">ลบ</button></td>
     </tr>
   `).join('');
+}
+
+function toggleSelectAll(checked) {
+  document.querySelectorAll('.reg-row-check').forEach(cb => cb.checked = checked);
+}
+
+function applyRegFilter() {
+  const start = document.getElementById('reg-filter-start').value || null;
+  const end = document.getElementById('reg-filter-end').value || null;
+  const filtered = filterByDateRange(state.registrations, start ? start + 'T00:00:00' : null, end ? end + 'T23:59:59' : null);
+  renderRegistrationsTable(filtered);
+}
+
+function clearRegFilter() {
+  document.getElementById('reg-filter-start').value = '';
+  document.getElementById('reg-filter-end').value = '';
+  renderRegistrationsTable(state.registrations);
+}
+
+async function deleteRegistration(id) {
+  if (!confirm('ยืนยันลบผู้ลงทะเบียนรายนี้? กู้คืนไม่ได้')) return;
+
+  const { error } = await supabase.from('registrations').delete().eq('id', id);
+  if (error) { toast('ลบไม่สำเร็จ: ' + error.message, 'err'); return; }
+
+  state.registrations = state.registrations.filter(r => r.id !== id);
+  renderRegistrationsTable(regFilteredRows.filter(r => r.id !== id));
+  toast('ลบสำเร็จ', 'ok');
+}
+
+async function deleteSelectedRegistrations() {
+  const ids = [...document.querySelectorAll('.reg-row-check:checked')].map(cb => cb.value);
+  if (ids.length === 0) { toast('ยังไม่ได้เลือกแถวใดเลย', 'err'); return; }
+  if (!confirm(`ยืนยันลบผู้ลงทะเบียน ${ids.length} รายการ? กู้คืนไม่ได้`)) return;
+
+  const { error } = await supabase.from('registrations').delete().in('id', ids);
+  if (error) { toast('ลบไม่สำเร็จ: ' + error.message, 'err'); return; }
+
+  state.registrations = state.registrations.filter(r => !ids.includes(r.id));
+  renderRegistrationsTable(regFilteredRows.filter(r => !ids.includes(r.id)));
+  toast(`ลบสำเร็จ ${ids.length} รายการ`, 'ok');
 }
 
 function subscribeRegistrations() {
