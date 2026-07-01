@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <title>Test Supabase API</title>
+  <style>
+    body { font-family: 'Courier New', monospace; background: #0d1117; color: #e6edf3; padding: 24px; }
+    h1 { color: #ffd700; }
+    .btn { background: #ffd700; color: #0d1117; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; margin: 6px 4px; }
+    .btn:hover { background: #ffe54d; }
+    .result { margin-top: 16px; padding: 16px; background: #161b22; border: 1px solid #30363d; border-radius: 8px; white-space: pre-wrap; word-break: break-all; font-size: 13px; min-height: 60px; }
+    .ok { border-color: #3fb950; color: #3fb950; }
+    .err { border-color: #f85149; color: #f85149; }
+    .info { border-color: #58a6ff; color: #58a6ff; }
+    .section { margin-bottom: 28px; }
+    label { color: #7d8590; font-size: 12px; }
+    input { background: #21262d; color: #e6edf3; border: 1px solid #30363d; border-radius: 4px; padding: 6px 10px; width: 100%; box-sizing: border-box; margin-top: 4px; font-family: monospace; font-size: 13px; }
+  </style>
+</head>
+<body>
+
+<h1>Test Supabase API</h1>
+
+<div class="section">
+  <label>Event Slug</label>
+  <input id="test-slug" type="text" value="test-event" />
+</div>
+
+<hr />
+
+<div class="section">
+  <h3>1. โหลด Config (events by slug)</h3>
+  <button class="btn" onclick="testGetConfig()">Run</button>
+  <div class="result info" id="result-1">กด Run เพื่อทดสอบ...</div>
+</div>
+
+<div class="section">
+  <h3>2. ดูจำนวนของรางวัลคงเหลือ (prizes)</h3>
+  <button class="btn" onclick="testGetRemaining()">Run</button>
+  <div class="result info" id="result-2">กด Run เพื่อทดสอบ...</div>
+</div>
+
+<div class="section">
+  <h3>3. ทดสอบลงทะเบียน (insert registrations)</h3>
+  <button class="btn" onclick="testRegister()">Run (TEST DATA)</button>
+  <div class="result info" id="result-3">กด Run เพื่อทดสอบ...</div>
+</div>
+
+<div class="section">
+  <h3>4. ทดสอบลดสต็อกของรางวัล (decrement_prize RPC)</h3>
+  <button class="btn" onclick="testDecrement()">Run</button>
+  <div class="result info" id="result-4">กด Run เพื่อทดสอบ...</div>
+</div>
+
+<div class="section">
+  <h3>5. ทดสอบ RLS block (anon SELECT registrations ต้องถูกบล็อก)</h3>
+  <button class="btn" onclick="testRlsBlock()">Run</button>
+  <div class="result info" id="result-5">กด Run เพื่อทดสอบ...</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabaseClient.js"></script>
+<script>
+  function show(id, text, cls) {
+    const el = document.getElementById('result-' + id);
+    el.textContent = text;
+    el.className = 'result ' + cls;
+  }
+
+  let testEventId = null;
+
+  async function testGetConfig() {
+    const slug = document.getElementById('test-slug').value.trim();
+    const { data, error } = await supabase.from('events').select('*').eq('slug', slug).single();
+    if (error) { show(1, 'ERROR: ' + error.message, 'err'); return; }
+    testEventId = data.id;
+    show(1, JSON.stringify(data, null, 2), 'ok');
+  }
+
+  async function testGetRemaining() {
+    if (!testEventId) { show(2, 'รัน Test 1 ก่อน เพื่อดึง event id', 'err'); return; }
+    const { data, error } = await supabase.from('prizes').select('*').eq('event_id', testEventId);
+    if (error) { show(2, 'ERROR: ' + error.message, 'err'); return; }
+    show(2, JSON.stringify(data, null, 2), 'ok');
+  }
+
+  async function testRegister() {
+    if (!testEventId) { show(3, 'รัน Test 1 ก่อน เพื่อดึง event id', 'err'); return; }
+    const { data, error } = await supabase.from('registrations').insert({
+      event_id: testEventId, first_name: 'ทดสอบ', last_name: 'ระบบ',
+      email: 'test@api-check.com', phone: '0812345678', company: 'TEST',
+      position: 'API Tester', prize_label: 'ของรางวัลทดสอบ', prize_id: 'notepad',
+    }).select();
+    if (error) { show(3, 'ERROR: ' + error.message, 'err'); return; }
+    show(3, JSON.stringify(data, null, 2) + '\n\nอย่าลืมลบแถวทดสอบนี้ทีหลัง', 'ok');
+  }
+
+  async function testDecrement() {
+    if (!testEventId) { show(4, 'รัน Test 1 ก่อน เพื่อดึง event id', 'err'); return; }
+    const { data, error } = await supabase.rpc('decrement_prize', { p_event_id: testEventId, p_prize_id: 'notepad' });
+    if (error) { show(4, 'ERROR: ' + error.message, 'err'); return; }
+    show(4, 'remaining after decrement: ' + JSON.stringify(data), 'ok');
+  }
+
+  async function testRlsBlock() {
+    const { data, error } = await supabase.from('registrations').select('*');
+    if (error) {
+      show(5, 'ผ่าน — ถูกบล็อกตามที่คาด: ' + error.message, 'ok');
+    } else if (data.length === 0) {
+      show(5, 'ผ่าน — ไม่มีข้อมูลคืนมา (RLS บล็อก select ให้ anon)', 'ok');
+    } else {
+      show(5, 'FAIL — anon อ่านข้อมูล registrations ได้! ตรวจ RLS policy ด่วน:\n' + JSON.stringify(data, null, 2), 'err');
+    }
+  }
+</script>
+</body>
+</html>
