@@ -403,6 +403,9 @@
       <button class="nav-item" data-panel="form">
         <span class="icon">📋</span><span>หน้าลงทะเบียน</span>
       </button>
+      <button class="nav-item" data-panel="registrations">
+        <span class="icon">R</span><span>รายชื่อผู้ลงทะเบียน</span>
+      </button>
     </div>
     <div class="sidebar-footer">
       <button class="btn btn-success" style="width:100%;" onclick="saveToServer()" id="save-btn">
@@ -443,6 +446,28 @@
       <!-- Connection Status Alert -->
       <div id="connection-alert" class="alert alert-error" style="display:none;">
         ⚠️ ไม่สามารถเชื่อมต่อ Google Sheets ได้ — ตรวจสอบ <code>googleScriptUrl</code> ใน wheelConfig.js
+      </div>
+
+      <!-- ── REGISTRATIONS ── -->
+      <div id="panel-registrations" class="panel">
+        <div class="total-strip">
+          <div><div class="total-lbl">จำนวนผู้ลงทะเบียนทั้งหมด</div><div class="total-val" id="reg-total">0</div></div>
+        </div>
+        <div style="overflow-x:auto;margin-top:14px;">
+          <table style="width:100%;border-collapse:collapse;font-size:13px;">
+            <thead>
+              <tr style="text-align:left;border-bottom:1px solid var(--border);">
+                <th style="padding:8px;">เวลา</th>
+                <th style="padding:8px;">ชื่อ</th>
+                <th style="padding:8px;">นามสกุล</th>
+                <th style="padding:8px;">อีเมล</th>
+                <th style="padding:8px;">เบอร์โทร</th>
+                <th style="padding:8px;">ของรางวัล</th>
+              </tr>
+            </thead>
+            <tbody id="reg-table-body"></tbody>
+          </table>
+        </div>
       </div>
 
       <!-- ── PRIZES ── -->
@@ -633,6 +658,7 @@ const PALETTE = ['#f9c74f','#4cc9f0','#43aa8b','#f94144','#9b5de5','#ff6b35','#0
 let state = {
   prizes: [],
   currentEventId: null,
+  registrations: [],
   general: {},
   remaining: {},     // { prizeId: count }
   eventName: '',     // ชื่องาน Event
@@ -768,6 +794,53 @@ function copyEventLink() {
   toast('คัดลอกลิงก์แล้ว: ' + url, 'ok');
 }
 
+let registrationsChannel = null;
+
+async function loadRegistrations() {
+  if (!state.currentEventId) return;
+
+  const { data, error } = await supabase
+    .from('registrations')
+    .select('*')
+    .eq('event_id', state.currentEventId)
+    .order('created_at', { ascending: false });
+
+  if (error) { toast('โหลดรายชื่อไม่สำเร็จ: ' + error.message, 'err'); return; }
+
+  state.registrations = data;
+  renderRegistrationsTable(state.registrations);
+  subscribeRegistrations();
+}
+
+function renderRegistrationsTable(rows) {
+  document.getElementById('reg-total').textContent = rows.length;
+  document.getElementById('reg-table-body').innerHTML = rows.map(r => `
+    <tr style="border-bottom:1px solid var(--border);" data-id="${r.id}">
+      <td style="padding:8px;">${esc(new Date(r.created_at).toLocaleString('th-TH'))}</td>
+      <td style="padding:8px;">${esc(r.first_name)}</td>
+      <td style="padding:8px;">${esc(r.last_name)}</td>
+      <td style="padding:8px;">${esc(r.email)}</td>
+      <td style="padding:8px;">${esc(r.phone)}</td>
+      <td style="padding:8px;">${esc(r.prize_label)}</td>
+    </tr>
+  `).join('');
+}
+
+function subscribeRegistrations() {
+  if (registrationsChannel) supabase.removeChannel(registrationsChannel);
+
+  registrationsChannel = supabase
+    .channel('registrations-live-' + state.currentEventId)
+    .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'registrations', filter: `event_id=eq.${state.currentEventId}` },
+        (payload) => {
+          state.registrations = [payload.new, ...state.registrations];
+          renderRegistrationsTable(state.registrations);
+        }
+    )
+    .subscribe();
+}
+
 async function init() {
   const authed = await requireAuth();
   if (!authed) return;
@@ -792,9 +865,11 @@ function setupNav() {
         prizes:  { title: '🎁 ของรางวัล',      sub: 'จัดการของรางวัล + ดูจำนวนคงเหลือแบบ real-time' },
         general: { title: '🔧 ตั้งค่าทั่วไป',   sub: 'URLs, Logo และ Animation' },
         form:    { title: '📋 หน้าลงทะเบียน', sub: 'Fields, แบรนด์, PDPA — ปรับแต่งฟอร์มลงทะเบียน' },
+        registrations: { title: 'รายชื่อผู้ลงทะเบียน', sub: 'ดูแบบ real-time, filter, export, ลบ' },
       };
       // Render form panel on first open
       if (pid === 'form') renderFormPanel();
+      if (pid === 'registrations') loadRegistrations();
       document.getElementById('panel-title').textContent = titles[pid]?.title || '';
       document.getElementById('panel-sub').textContent = titles[pid]?.sub || '';
     });
