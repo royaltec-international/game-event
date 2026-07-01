@@ -50,6 +50,8 @@
     // โหลด Config + remaining จาก Server (อัปเดตทับ local)
     await loadConfig();
 
+    drainRetryQueue().catch(console.error);
+
     // Render form dynamically จาก config (fields, brands, PDPA)
     renderForm();
 
@@ -380,30 +382,48 @@
   }
 
   // ----------------------------------------------------------
-  //  Google Sheets (Apps Script)
+  //  Supabase Registration Insert + Retry Queue
   // ----------------------------------------------------------
-  async function sendToGoogleSheets(payload) {
-    if (!WHEEL_CONFIG.googleScriptUrl || WHEEL_CONFIG.googleScriptUrl.includes('YOUR_SCRIPT_ID')) {
-      console.warn('Google Script URL ยังไม่ได้ตั้งค่า — ข้ามการส่งข้อมูล');
-      return;
+  async function insertRegistration(payload) {
+    const row = {
+      event_id: CURRENT_EVENT_ID,
+      first_name: payload.firstName || '',
+      last_name: payload.lastName || '',
+      email: payload.email || '',
+      phone: payload.phone || '',
+      company: payload.company || '',
+      position: payload.position || '',
+      prize_label: payload.prize || '',
+      prize_id: payload.prizeId || '',
+      brands: payload.brands || '',
+      pdpa_consent: payload.pdpaConsent === 'true' ? 'YES' : payload.pdpaConsent === 'false' ? 'NO' : 'N/A',
+      custom_fields: payload.customFields ? JSON.parse(payload.customFields) : null,
+    };
+
+    const { error } = await supabase.from('registrations').insert(row);
+    if (error) {
+      console.error('Insert failed, queueing for retry:', error);
+      queueFailedRegistration(window.localStorage, row);
+      return false;
+    }
+    return true;
+  }
+
+  async function drainRetryQueue() {
+    const pending = readRetryQueue(window.localStorage);
+    if (pending.length === 0) return;
+
+    const stillFailing = [];
+    for (const row of pending) {
+      const { error } = await supabase.from('registrations').insert(row);
+      if (error) stillFailing.push(row);
     }
 
-    // เพิ่ม eventName + action ลงใน payload
-    payload.eventName = WHEEL_CONFIG.eventName || 'Default Event';
-    payload.action    = 'register';
-
-    // ส่งแบบ URL-encoded (simple request — ไม่มี CORS preflight)
-    const params = new URLSearchParams();
-    Object.entries(payload).forEach(([k, v]) => {
-      if (v !== undefined && v !== null) params.append(k, String(v));
-    });
-
-    await fetch(WHEEL_CONFIG.googleScriptUrl, {
-      method: 'POST',
-      body: params.toString(),
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    });
+    if (stillFailing.length === 0) {
+      clearRetryQueue(window.localStorage);
+    } else {
+      window.localStorage.setItem(RETRY_QUEUE_KEY, JSON.stringify(stillFailing));
+    }
   }
 
   // ----------------------------------------------------------
@@ -523,19 +543,30 @@
   // ----------------------------------------------------------
   //  Spin
   // ----------------------------------------------------------
-  function handleSpin() {
+  async function handleSpin() {
     if (state.isSpinning) return;
+
+    dom.spinBtn.disabled = true;
+
+    // Sync ล่าสุดจาก Supabase ก่อนคำนวณวงล้อ ลดโอกาสชนกับคนอื่นให้เหลือน้อยที่สุด
+    const freshRemaining = await getRemainingPrizes();
+    if (freshRemaining) {
+      WHEEL_CONFIG.prizes.forEach(p => {
+        if (freshRemaining[p.id] !== undefined) state.prizesRemaining[p.id] = freshRemaining[p.id];
+      });
+      drawWheel(state.currentAngle);
+    }
 
     const active = getActiveSegments();
     if (active.length === 0) {
       showToast('ของรางวัลหมดแล้ว!', 'error');
+      dom.spinBtn.disabled = false;
       return;
     }
 
     const prize = pickPrize();
     state.wonPrize = prize;
     state.isSpinning = true;
-    dom.spinBtn.disabled = true;
     dom.canvas.classList.add('spinning');
 
     const segments = getActiveSegments();
@@ -551,22 +582,32 @@
     const diff = ((targetNorm - currentNorm) + 2 * Math.PI) % (2 * Math.PI);
     const targetAngle = state.currentAngle + diff + (2 * Math.PI * rotations);
 
-    spinAnimate(state.currentAngle, targetAngle, cfg.durationMs, () => {
+    spinAnimate(state.currentAngle, targetAngle, cfg.durationMs, async () => {
       state.currentAngle = targetAngle;
       state.isSpinning = false;
       dom.canvas.classList.remove('spinning');
 
-      state.prizesRemaining[prize.id]--;
+      const newRemaining = await decrementPrizeRpc(prize.id);
 
-      // บันทึกข้อมูลรางวัลลง Google Sheets (พร้อม eventName)
-      sendToGoogleSheets({
+      if (newRemaining === null) {
+        // ของหมดพอดีตอนกำลังหมุน — บังคับหมุนใหม่ ห้ามสุ่มของอื่นแทน (วงล้อโชว์ผลไปแล้ว)
+        showToast('ของชิ้นนี้เพิ่งหมดพอดี กรุณาหมุนใหม่', 'error');
+        state.prizesRemaining[prize.id] = 0;
+        drawWheel(state.currentAngle);
+        dom.spinBtn.disabled = false;
+        return;
+      }
+
+      state.prizesRemaining[prize.id] = newRemaining;
+
+      insertRegistration({
         ...state.userData,
         prize: prize.label,
         prizeId: prize.id,
-        timestamp: new Date().toISOString()
       }).catch(console.error);
 
       showResult(prize);
+      dom.spinBtn.disabled = false;
     });
   }
 
