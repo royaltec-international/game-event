@@ -409,7 +409,10 @@
     </div>
     <div class="sidebar-footer">
       <button class="btn btn-success" style="width:100%;" onclick="saveToServer()" id="save-btn">
-        💾 บันทึก
+        บันทึก
+      </button>
+      <button class="btn btn-outline" style="width:100%;margin-top:8px;" onclick="logout()">
+        ออกจากระบบ
       </button>
     </div>
   </nav>
@@ -445,7 +448,7 @@
 
       <!-- Connection Status Alert -->
       <div id="connection-alert" class="alert alert-error" style="display:none;">
-        ⚠️ ไม่สามารถเชื่อมต่อ Google Sheets ได้ — ตรวจสอบ <code>googleScriptUrl</code> ใน wheelConfig.js
+        ไม่สามารถเชื่อมต่อ Supabase ได้ — ตรวจสอบ SUPABASE_URL / SUPABASE_ANON_KEY ใน supabaseClient.js
       </div>
 
       <!-- ── REGISTRATIONS ── -->
@@ -720,6 +723,10 @@ async function requireAuth() {
   return true;
 }
 
+async function logout() {
+  await supabase.auth.signOut();
+}
+
 document.getElementById('login-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const email = document.getElementById('login-email').value.trim();
@@ -786,6 +793,7 @@ async function createEvent(name, slug) {
 
   await loadEventList();
   await selectEvent(data.id);
+  await syncPrizesTable(data.id, defaultConfig.prizes);
   toast('สร้าง Event สำเร็จ', 'ok');
 }
 
@@ -796,6 +804,61 @@ async function setActiveEvent(eventId) {
   if (error) { toast('ตั้ง Event ปัจจุบันไม่สำเร็จ: ' + error.message, 'err'); return; }
   await loadEventList();
   toast('ตั้งเป็น Event ปัจจุบันแล้ว', 'ok');
+}
+
+async function syncPrizesTable(eventId, prizes) {
+  const { data: existing, error: fetchErr } = await supabase
+    .from('prizes')
+    .select('id, used')
+    .eq('event_id', eventId);
+
+  if (fetchErr) {
+    console.error('Error fetching existing prizes for sync:', fetchErr);
+    return false;
+  }
+
+  const usedMap = {};
+  (existing || []).forEach(row => { usedMap[row.id] = row.used; });
+
+  const currentIds = prizes.map(p => p.id);
+
+  if (prizes.length > 0) {
+    const rows = prizes.map(p => ({
+      id: p.id,
+      event_id: eventId,
+      label: p.label,
+      quantity: p.quantity,
+      used: usedMap[p.id] !== undefined ? usedMap[p.id] : 0,
+    }));
+
+    const { error: upsertErr } = await supabase
+      .from('prizes')
+      .upsert(rows, { onConflict: 'id,event_id' });
+
+    if (upsertErr) {
+      console.error('Error syncing prizes:', upsertErr);
+      return false;
+    }
+  }
+
+  const staleIds = (existing || [])
+    .map(row => row.id)
+    .filter(id => !currentIds.includes(id));
+
+  if (staleIds.length > 0) {
+    const { error: deleteErr } = await supabase
+      .from('prizes')
+      .delete()
+      .eq('event_id', eventId)
+      .in('id', staleIds);
+
+    if (deleteErr) {
+      console.error('Error removing stale prizes:', deleteErr);
+      return false;
+    }
+  }
+
+  return true;
 }
 
 function copyEventLink() {
@@ -1079,10 +1142,14 @@ async function saveToServer() {
     };
     
     const success = await saveConfigToServer(state.currentEventId, config);
-    
+
     if (success) {
+      const prizesSynced = await syncPrizesTable(state.currentEventId, state.prizes);
+      if (!prizesSynced) {
+        console.error('Prize table sync failed after config save');
+      }
       setSyncStatus('success', 'บันทึกสำเร็จ');
-      toast('💾 บันทึกไปยัง Google Sheets แล้ว', 'ok');
+      toast('บันทึกไปยัง Supabase แล้ว', 'ok');
       // Reload remaining to update stock
       const remaining = await getRemainingPrizes();
       if (remaining) {

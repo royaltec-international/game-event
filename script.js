@@ -71,8 +71,6 @@
   //  Load Config from Server
   // ----------------------------------------------------------
   async function loadConfig() {
-    if (!WHEEL_CONFIG.googleScriptUrl) return;
-
     try {
       // โหลด config จาก server
       const config = await loadConfigFromServer();
