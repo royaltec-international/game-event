@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <title>🧪 Test Google Apps Script API</title>
+  <style>
+    body { font-family: 'Courier New', monospace; background: #0d1117; color: #e6edf3; padding: 24px; }
+    h1 { color: #ffd700; }
+    .btn {
+      background: #ffd700; color: #0d1117; border: none; padding: 10px 20px;
+      border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; margin: 6px 4px;
+    }
+    .btn:hover { background: #ffe54d; }
+    .btn.red { background: #f85149; color: white; }
+    .btn.green { background: #3fb950; color: #0d1117; }
+    .result {
+      margin-top: 16px; padding: 16px; background: #161b22; border: 1px solid #30363d;
+      border-radius: 8px; white-space: pre-wrap; word-break: break-all; font-size: 13px;
+      min-height: 60px;
+    }
+    .ok   { border-color: #3fb950; color: #3fb950; }
+    .err  { border-color: #f85149; color: #f85149; }
+    .info { border-color: #58a6ff; color: #58a6ff; }
+    .section { margin-bottom: 28px; }
+    label { color: #7d8590; font-size: 12px; }
+    input { background: #21262d; color: #e6edf3; border: 1px solid #30363d; border-radius: 4px; padding: 6px 10px; width: 100%; box-sizing: border-box; margin-top: 4px; font-family: monospace; font-size: 13px; }
+    .tag  { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: bold; }
+    .tag-get  { background: rgba(63,185,80,0.15); color: #3fb950; border: 1px solid #3fb950; }
+    .tag-post { background: rgba(255,215,0,0.15); color: #ffd700; border: 1px solid #ffd700; }
+    .status { font-size: 12px; color: #7d8590; margin-top: 4px; }
+  </style>
+</head>
+<body>
+
+<h1>🧪 Google Apps Script — API Tester</h1>
+
+<div class="section">
+  <label>🔗 Script URL</label>
+  <input id="script-url" type="text"
+    value="https://script.google.com/macros/s/AKfycbycrbcoYk7emRUW6bV-fPR0lb7r-KV23MbPfXXeFLlESIHZx3RFZ4xZsa8-sNuIom-aSg/exec" />
+</div>
+
+<hr style="border-color:#30363d;margin:20px 0;" />
+
+<!-- TEST 1: getConfig -->
+<div class="section">
+  <h3><span class="tag tag-get">GET</span> &nbsp;1. โหลด Config จาก Sheets</h3>
+  <button class="btn" onclick="testGetConfig()">▶ Run getConfig</button>
+  <div class="status" id="status-1">ยังไม่ได้ทดสอบ</div>
+  <div class="result info" id="result-1">กด Run เพื่อทดสอบ...</div>
+</div>
+
+<!-- TEST 2: getRemaining -->
+<div class="section">
+  <h3><span class="tag tag-get">GET</span> &nbsp;2. ดูจำนวนของรางวัลคงเหลือ</h3>
+  <button class="btn" onclick="testGetRemaining()">▶ Run getRemaining</button>
+  <div class="status" id="status-2">ยังไม่ได้ทดสอบ</div>
+  <div class="result info" id="result-2">กด Run เพื่อทดสอบ...</div>
+</div>
+
+<!-- TEST 3: saveConfig -->
+<div class="section">
+  <h3><span class="tag tag-post">POST</span> &nbsp;3. บันทึก Config (ทดสอบการ Save)</h3>
+  <p style="font-size:12px;color:#7d8590;">จะส่ง config ทดสอบไปบันทึกใน Google Sheets จริงๆ</p>
+  <button class="btn green" onclick="testSaveConfig()">▶ Run saveConfig</button>
+  <div class="status" id="status-3">ยังไม่ได้ทดสอบ</div>
+  <div class="result info" id="result-3">กด Run เพื่อทดสอบ...</div>
+</div>
+
+<!-- TEST 4: register -->
+<div class="section">
+  <h3><span class="tag tag-post">POST</span> &nbsp;4. ทดสอบลงทะเบียน (บันทึก Registrations)</h3>
+  <p style="font-size:12px;color:#7d8590;">จะเพิ่มแถวทดสอบเข้า Sheet Registrations จริงๆ</p>
+  <button class="btn red" onclick="testRegister()">▶ Run register (TEST DATA)</button>
+  <div class="status" id="status-4">ยังไม่ได้ทดสอบ</div>
+  <div class="result info" id="result-4">กด Run เพื่อทดสอบ...</div>
+</div>
+
+<!-- RUN ALL -->
+<div class="section">
+  <hr style="border-color:#30363d;" />
+  <button class="btn" style="font-size:16px;padding:14px 28px;" onclick="runAll()">
+    ⚡ Run ทุก Test พร้อมกัน
+  </button>
+</div>
+
+<script>
+  function getUrl() {
+    return document.getElementById('script-url').value.trim();
+  }
+
+  function setResult(id, text, cls) {
+    document.getElementById('result-' + id).textContent = text;
+    document.getElementById('result-' + id).className = 'result ' + cls;
+  }
+
+  function setStatus(id, text) {
+    document.getElementById('status-' + id).textContent = text;
+  }
+
+  async function testGetConfig() {
+    setStatus(1, '⏳ กำลังทดสอบ...');
+    setResult(1, 'กำลังส่ง request...', 'info');
+    try {
+      const t0 = Date.now();
+      const res = await fetch(getUrl() + '?action=getConfig', {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' }
+      });
+      const ms = Date.now() - t0;
+      const json = await res.json();
+      if (json.success) {
+        setStatus(1, `✅ สำเร็จ (${ms}ms) — HTTP ${res.status}`);
+        setResult(1, JSON.stringify(json, null, 2), 'ok');
+      } else {
+        setStatus(1, `⚠️ API ตอบกลับแต่มี error (${ms}ms)`);
+        setResult(1, JSON.stringify(json, null, 2), 'err');
+      }
+    } catch (e) {
+      setStatus(1, '❌ เชื่อมต่อไม่ได้');
+      setResult(1, 'ERROR: ' + e.message + '\n\nอาจเกิดจาก:\n- URL ผิด\n- ยังไม่ได้ Deploy\n- Permission ไม่ถูกต้อง (ต้องตั้งเป็น Anyone)', 'err');
+    }
+  }
+
+  async function testGetRemaining() {
+    setStatus(2, '⏳ กำลังทดสอบ...');
+    setResult(2, 'กำลังส่ง request...', 'info');
+    try {
+      const t0 = Date.now();
+      const res = await fetch(getUrl() + '?action=getRemaining', {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' }
+      });
+      const ms = Date.now() - t0;
+      const json = await res.json();
+      if (json.success) {
+        setStatus(2, `✅ สำเร็จ (${ms}ms) — HTTP ${res.status}`);
+        setResult(2, JSON.stringify(json, null, 2), 'ok');
+      } else {
+        setStatus(2, `⚠️ API ตอบกลับแต่มี error (${ms}ms)`);
+        setResult(2, JSON.stringify(json, null, 2), 'err');
+      }
+    } catch (e) {
+      setStatus(2, '❌ เชื่อมต่อไม่ได้');
+      setResult(2, 'ERROR: ' + e.message, 'err');
+    }
+  }
+
+  async function testSaveConfig() {
+    setStatus(3, '⏳ กำลังทดสอบ...');
+    setResult(3, 'กำลังส่ง POST request...', 'info');
+    const testConfig = {
+      eventName: '🧪 TEST EVENT — API Check ' + new Date().toLocaleString('th-TH'),
+      prizes: [
+        { id: 'test_prize', label: 'TEST PRIZE', weight: 10, quantity: 5, color: '#ffd700', textColor: '#000000', icon: '🎁' }
+      ],
+      logoUrl: '',
+      lineAddFriendUrl: '',
+      spin: { minRotations: 5, maxRotations: 10, durationMs: 5000 }
+    };
+    try {
+      const t0 = Date.now();
+      const res = await fetch(getUrl(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({ action: 'saveConfig', config: testConfig })
+      });
+      const ms = Date.now() - t0;
+      const json = await res.json();
+      if (json.success) {
+        setStatus(3, `✅ บันทึกสำเร็จ! (${ms}ms) — ตรวจดูใน Google Sheets ได้เลย`);
+        setResult(3, JSON.stringify(json, null, 2) + '\n\n✅ Config ถูกบันทึกลง Sheet "Config" แล้ว', 'ok');
+      } else {
+        setStatus(3, `⚠️ API ตอบกลับแต่มี error (${ms}ms)`);
+        setResult(3, JSON.stringify(json, null, 2), 'err');
+      }
+    } catch (e) {
+      setStatus(3, '❌ POST request ล้มเหลว');
+      setResult(3, 'ERROR: ' + e.message + '\n\nตรวจสอบ:\n- CORS settings ใน Apps Script\n- Content-Type header', 'err');
+    }
+  }
+
+  async function testRegister() {
+    setStatus(4, '⏳ กำลังทดสอบ...');
+    setResult(4, 'กำลังส่ง POST request...', 'info');
+    const testData = {
+      action: 'register',
+      timestamp: new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' }),
+      eventName: '🧪 API TEST',
+      firstName: 'ทดสอบ',
+      lastName: 'ระบบ',
+      email: 'test@api-check.com',
+      phone: '0812345678',
+      company: 'TEST COMPANY',
+      position: 'API Tester',
+      prize: 'ของรางวัลทดสอบ',
+      prizeId: 'test_prize'
+    };
+    try {
+      const t0 = Date.now();
+      const res = await fetch(getUrl(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify(testData)
+      });
+      const ms = Date.now() - t0;
+      const json = await res.json();
+      if (json.success) {
+        setStatus(4, `✅ ลงทะเบียนสำเร็จ! (${ms}ms) — มีแถวใหม่ใน Sheet "Registrations"`);
+        setResult(4, JSON.stringify(json, null, 2) + '\n\n✅ ข้อมูลถูกบันทึกลง Sheet "Registrations" แล้ว\n⚠️  อย่าลืมลบแถว Test นี้ออกจาก Sheet', 'ok');
+      } else {
+        setStatus(4, `⚠️ API ตอบกลับแต่มี error (${ms}ms)`);
+        setResult(4, JSON.stringify(json, null, 2), 'err');
+      }
+    } catch (e) {
+      setStatus(4, '❌ POST request ล้มเหลว');
+      setResult(4, 'ERROR: ' + e.message, 'err');
+    }
+  }
+
+  async function runAll() {
+    await Promise.all([
+      testGetConfig(),
+      testGetRemaining(),
+      testSaveConfig(),
+      testRegister()
+    ]);
+  }
+</script>
+</body>
+</html>

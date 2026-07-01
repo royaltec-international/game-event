@@ -1,0 +1,1236 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>⚙️ Admin Panel — Real-time</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700;900&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --surface2: #21262d;
+      --border: #30363d;
+      --text: #e6edf3;
+      --text-muted: #7d8590;
+      --accent: #ffd700;
+      --accent-dim: rgba(255,215,0,0.12);
+      --danger: #f85149;
+      --success: #3fb950;
+      --info: #58a6ff;
+      --font: 'Kanit', sans-serif;
+      --radius: 10px;
+      --radius-sm: 6px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .layout { display: flex; min-height: 100vh; }
+
+    /* ─── Sidebar ─── */
+    .sidebar {
+      width: 220px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+      z-index: 100;
+    }
+
+    .sidebar-logo {
+      padding: 20px 16px 14px;
+      border-bottom: 1px solid var(--border);
+    }
+    .sidebar-logo span {
+      font-size: 11px; font-weight: 500;
+      color: var(--text-muted); letter-spacing: 1.5px; text-transform: uppercase;
+    }
+    .sidebar-logo h1 { font-size: 17px; font-weight: 700; color: var(--accent); }
+
+    .nav { padding: 12px 8px; flex: 1; }
+    .nav-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 12px; border-radius: var(--radius-sm);
+      cursor: pointer; font-size: 13px; font-weight: 500;
+      color: var(--text-muted); transition: all 0.18s;
+      margin-bottom: 2px; border: none; background: none; width: 100%; text-align: left;
+      font-family: var(--font);
+    }
+    .nav-item:hover { background: var(--surface2); color: var(--text); }
+    .nav-item.active { background: var(--accent-dim); color: var(--accent); }
+    .nav-item .icon { font-size: 16px; width: 20px; text-align: center; }
+
+    .sidebar-footer { padding: 14px 12px; border-top: 1px solid var(--border); }
+
+    /* ─── Main ─── */
+    .main { margin-left: 220px; flex: 1; display: flex; flex-direction: column; }
+
+    .topbar {
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      padding: 14px 28px; display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 50;
+    }
+    .topbar-left { display: flex; align-items: center; gap: 12px; }
+    .topbar-title { font-size: 16px; font-weight: 600; }
+    .topbar-sub { font-size: 12px; color: var(--text-muted); margin-top: 1px; }
+    .topbar-actions { display: flex; gap: 10px; align-items: center; }
+
+    .sync-indicator {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 12px; color: var(--text-muted);
+      padding: 6px 12px; border-radius: 999px;
+      background: var(--surface2); border: 1px solid var(--border);
+    }
+    .sync-indicator.loading { color: var(--info); border-color: var(--info); }
+    .sync-indicator.success { color: var(--success); border-color: var(--success); }
+    .sync-indicator.error { color: var(--danger); border-color: var(--danger); }
+    .sync-dot {
+      width: 6px; height: 6px; border-radius: 50%; background: currentColor;
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    .content { padding: 28px; max-width: 960px; }
+
+    /* ─── Panels ─── */
+    .panel { display: none; animation: fadeIn 0.25s ease; }
+    .panel.active { display: block; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ─── Section Card ─── */
+    .section-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); margin-bottom: 20px; overflow: hidden;
+    }
+    .section-header {
+      padding: 14px 20px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+      background: var(--surface2);
+    }
+    .section-header-left { display: flex; align-items: center; gap: 10px; }
+    .section-icon { font-size: 18px; }
+    .section-label { font-size: 14px; font-weight: 600; }
+    .section-desc { font-size: 12px; color: var(--text-muted); margin-top: 1px; }
+    .section-body { padding: 20px; }
+
+    /* ─── Buttons ─── */
+    .btn {
+      font-family: var(--font); font-size: 13px; font-weight: 600;
+      border: none; border-radius: var(--radius-sm);
+      padding: 8px 16px; cursor: pointer;
+      display: inline-flex; align-items: center; gap: 6px; transition: all 0.18s;
+    }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-primary { background: var(--accent); color: #0d1117; }
+    .btn-primary:hover:not(:disabled) { background: #ffe54d; }
+    .btn-outline { background: transparent; color: var(--text-muted); border: 1px solid var(--border); }
+    .btn-outline:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+    .btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
+    .btn-danger:hover:not(:disabled) { background: rgba(248,81,73,0.1); }
+    .btn-success { background: var(--success); color: #0d1117; }
+    .btn-success:hover:not(:disabled) { filter: brightness(1.1); }
+    .btn-sm { padding: 5px 10px; font-size: 12px; }
+    .btn-icon { padding: 6px 10px; }
+
+    /* ─── Form Elements ─── */
+    label { font-size: 12px; font-weight: 500; color: var(--text-muted); display: block; margin-bottom: 4px; }
+
+    input[type="text"], input[type="number"], input[type="url"],
+    input[type="email"], select, textarea {
+      font-family: var(--font); font-size: 13px; font-weight: 400;
+      background: var(--surface2); color: var(--text);
+      border: 1px solid var(--border); border-radius: var(--radius-sm);
+      padding: 8px 12px; width: 100%; outline: none;
+      transition: border-color 0.18s, box-shadow 0.18s;
+    }
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(255,215,0,0.15);
+    }
+    input[type="color"] {
+      width: 42px; height: 36px; padding: 2px;
+      border: 1px solid var(--border); border-radius: var(--radius-sm);
+      background: var(--surface2); cursor: pointer; flex-shrink: 0;
+    }
+
+    /* ─── Toggle ─── */
+    .toggle { display: flex; align-items: center; gap: 8px; }
+    .toggle-input { display: none; }
+    .toggle-track {
+      width: 38px; height: 20px; background: var(--border);
+      border-radius: 999px; position: relative; cursor: pointer; transition: background 0.2s;
+    }
+    .toggle-input:checked + .toggle-track { background: var(--accent); }
+    .toggle-track::after {
+      content: ''; position: absolute; top: 2px; left: 2px;
+      width: 16px; height: 16px; background: white; border-radius: 50%; transition: transform 0.2s;
+    }
+    .toggle-input:checked + .toggle-track::after { transform: translateX(18px); }
+    .toggle-label { font-size: 13px; font-weight: 500; }
+
+    /* ─── Prize Cards ─── */
+    .prizes-list { display: flex; flex-direction: column; gap: 12px; }
+
+    .prize-card {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 16px; transition: border-color 0.18s;
+      position: relative;
+    }
+    .prize-card:hover { border-color: rgba(255,215,0,0.3); }
+
+    .prize-card-header {
+      display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;
+    }
+    .prize-card-title { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 13px; flex-wrap: wrap; }
+
+    .prize-badge {
+      width: 30px; height: 30px; border-radius: var(--radius-sm);
+      display: flex; align-items: center; justify-content: center; font-size: 16px;
+    }
+
+    .prize-grid {
+      display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 12px; align-items: end;
+    }
+
+    .form-group { display: flex; flex-direction: column; gap: 4px; }
+
+    .qty-stepper { display: flex; align-items: center; gap: 6px; }
+    .qty-stepper input { text-align: center; }
+
+    .prob-bar-wrap { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+    .prob-bar-label {
+      font-size: 11px; color: var(--text-muted);
+      display: flex; justify-content: space-between; margin-bottom: 5px;
+    }
+    .prob-bar-track { background: var(--border); border-radius: 999px; height: 5px; overflow: hidden; }
+    .prob-bar-fill { height: 100%; border-radius: 999px; transition: width 0.4s; }
+
+    /* Real-time stock badge */
+    .stock-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 11px; font-weight: 600; padding: 3px 8px;
+      border-radius: 999px; background: var(--surface);
+      border: 1px solid var(--border);
+    }
+    .stock-badge.high { color: var(--success); border-color: var(--success); background: rgba(63,185,80,0.1); }
+    .stock-badge.medium { color: #ffb020; border-color: #ffb020; background: rgba(255,176,32,0.1); }
+    .stock-badge.low { color: var(--danger); border-color: var(--danger); background: rgba(248,81,73,0.1); }
+    .stock-badge.out { color: var(--text-muted); border-color: var(--border); background: var(--surface2); }
+
+    /* ─── Chips ─── */
+    .chip {
+      display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 500;
+      padding: 3px 8px; border-radius: 999px;
+      background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(255,215,0,0.2);
+    }
+
+    /* ─── Total Strip ─── */
+    .total-strip {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 12px 18px;
+      display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px;
+    }
+    .total-val { font-size: 22px; font-weight: 700; color: var(--accent); }
+    .total-lbl { font-size: 11px; color: var(--text-muted); }
+
+    /* ─── Alert ─── */
+    .alert {
+      padding: 10px 14px; border-radius: var(--radius-sm); font-size: 13px;
+      margin-bottom: 16px; display: flex; align-items: flex-start; gap: 8px;
+    }
+    .alert-info { background: rgba(88,166,255,0.08); border: 1px solid rgba(88,166,255,0.25); color: #58a6ff; }
+    .alert-warn { background: rgba(255,215,0,0.06); border: 1px solid rgba(255,215,0,0.22); color: var(--accent); }
+    .alert-error { background: rgba(248,81,73,0.08); border: 1px solid rgba(248,81,73,0.25); color: var(--danger); }
+
+    /* ─── Toast ─── */
+    #toast-msg {
+      position: fixed; bottom: 24px; left: 50%;
+      transform: translateX(-50%) translateY(60px);
+      background: var(--surface); border: 1px solid var(--border); color: var(--text);
+      font-family: var(--font); font-size: 13px; padding: 10px 22px;
+      border-radius: 999px; box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+      z-index: 9999; transition: transform 0.35s cubic-bezier(0.34,1.56,0.64,1); white-space: nowrap;
+    }
+    #toast-msg.show { transform: translateX(-50%) translateY(0); }
+    #toast-msg.ok  { border-color: var(--success); }
+    #toast-msg.err { border-color: var(--danger); }
+
+    /* ─── Color presets ─── */
+    .color-presets { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 6px; }
+    .color-dot {
+      width: 20px; height: 20px; border-radius: 50%; cursor: pointer;
+      border: 2px solid transparent; transition: border-color 0.15s, transform 0.15s;
+    }
+    .color-dot:hover { border-color: white; transform: scale(1.2); }
+
+    /* ─── Loading overlay ─── */
+    .loading-overlay {
+      position: fixed; inset: 0; background: rgba(13,17,23,0.8);
+      display: none; align-items: center; justify-content: center;
+      z-index: 999; backdrop-filter: blur(4px);
+    }
+    .loading-overlay.active { display: flex; }
+    .spinner {
+      width: 48px; height: 48px;
+      border: 4px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @media (max-width: 700px) {
+      .sidebar { width: 56px; }
+      .sidebar-logo h1, .sidebar-logo span, .nav-item span { display: none; }
+      .nav-item { justify-content: center; padding: 10px; }
+      .main { margin-left: 56px; }
+      .prize-grid { grid-template-columns: 1fr 1fr; }
+    }
+
+    /* ─── Form Field Editor Cards ─── */
+    .field-card {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: var(--radius); margin-bottom: 10px;
+      transition: border-color 0.18s;
+    }
+    .field-card:hover { border-color: rgba(255,215,0,0.25); }
+    .field-card.disabled { opacity: 0.55; }
+
+    .field-card-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 14px; border-bottom: 1px solid var(--border);
+      background: rgba(255,255,255,0.02);
+    }
+    .field-card-header-left { display: flex; align-items: center; gap: 10px; }
+    .field-card-title { font-size: 13px; font-weight: 600; color: var(--text); }
+    .field-card-actions { display: flex; gap: 4px; align-items: center; }
+    .field-card-body { padding: 12px 14px; }
+
+    .field-grid-4 {
+      display: grid;
+      grid-template-columns: 2fr 2fr 1fr auto;
+      gap: 10px; align-items: end;
+    }
+
+    .base-badge {
+      font-size: 10px; font-weight: 600; padding: 2px 6px;
+      border-radius: 999px; background: rgba(255,215,0,0.1);
+      color: var(--accent); border: 1px solid rgba(255,215,0,0.25);
+      white-space: nowrap;
+    }
+
+    /* ─── Brands Admin List ─── */
+    .brand-admin-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 7px 10px; background: var(--bg); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); margin-bottom: 6px;
+    }
+    .brand-admin-item input[type="text"] { flex: 1; }
+
+    /* ─── Section Divider ─── */
+    .section-divider {
+      height: 1px; background: var(--border); margin: 16px 0;
+    }
+
+    /* ─── Preview Tag ─── */
+    .preview-box {
+      padding: 10px 14px; border-radius: var(--radius-sm);
+      background: rgba(88,166,255,0.06); border: 1px solid rgba(88,166,255,0.2);
+      font-size: 12px; color: #58a6ff; line-height: 1.55;
+    }
+  </style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loading">
+  <div class="spinner"></div>
+</div>
+
+<div class="layout">
+
+  <!-- ═══ SIDEBAR ═══ -->
+  <nav class="sidebar">
+    <div class="sidebar-logo">
+      <span>Real-time Admin</span>
+      <h1>⚙️ Config</h1>
+    </div>
+    <div class="nav">
+      <button class="nav-item active" data-panel="prizes">
+        <span class="icon">🎁</span><span>ของรางวัล</span>
+      </button>
+      <button class="nav-item" data-panel="general">
+        <span class="icon">🔧</span><span>ตั้งค่าทั่วไป</span>
+      </button>
+      <button class="nav-item" data-panel="form">
+        <span class="icon">📋</span><span>หน้าลงทะเบียน</span>
+      </button>
+    </div>
+    <div class="sidebar-footer">
+      <button class="btn btn-success" style="width:100%;" onclick="saveToServer()" id="save-btn">
+        💾 บันทึก
+      </button>
+    </div>
+  </nav>
+
+  <!-- ═══ MAIN ═══ -->
+  <div class="main">
+
+    <div class="topbar">
+      <div class="topbar-left">
+        <div>
+          <div class="topbar-title" id="panel-title">🎁 ของรางวัล</div>
+          <div class="topbar-sub" id="panel-sub">จัดการของรางวัล + ดูจำนวนคงเหลือแบบ real-time</div>
+        </div>
+      </div>
+      <div class="topbar-actions">
+        <div class="sync-indicator" id="sync-status">
+          <div class="sync-dot"></div>
+          <span id="sync-text">กำลังโหลด...</span>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="loadFromServer()">🔄 รีเฟรช</button>
+        <button class="btn btn-primary" onclick="saveToServer()">💾 บันทึก</button>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- Connection Status Alert -->
+      <div id="connection-alert" class="alert alert-error" style="display:none;">
+        ⚠️ ไม่สามารถเชื่อมต่อ Google Sheets ได้ — ตรวจสอบ <code>googleScriptUrl</code> ใน wheelConfig.js
+      </div>
+
+      <!-- ── PRIZES ── -->
+      <div id="panel-prizes" class="panel active">
+        <div class="alert alert-info">
+          ℹ️ <strong>Real-time Sync:</strong> จำนวนคงเหลืออัปเดตอัตโนมัติจาก Google Sheets — ขนาดช่องวงล้อเท่ากันทุกรางวัล
+        </div>
+        <div class="total-strip">
+          <div><div class="total-lbl">ของรางวัลทั้งหมด (เริ่มต้น)</div><div class="total-val" id="total-qty">0</div></div>
+          <div style="text-align:right;"><div class="total-lbl">คงเหลือทั้งหมด</div><div class="total-val" id="total-remaining">0</div></div>
+        </div>
+        <div id="prizes-list" class="prizes-list"></div>
+        <button class="btn btn-outline" style="width:100%;margin-top:14px;" onclick="addPrize()">
+          + เพิ่มของรางวัล
+        </button>
+      </div>
+
+      <!-- ── GENERAL ── -->
+      <div id="panel-general" class="panel">
+        <div class="section-card">
+          <div class="section-header">
+            <div class="section-header-left">
+              <span class="section-icon">🎪</span>
+              <div><div class="section-label">ข้อมูลงาน Event</div></div>
+            </div>
+          </div>
+          <div class="section-body" style="display:flex;flex-direction:column;gap:14px;">
+            <div class="alert alert-info" style="margin:0 0 10px;">
+              📌 <strong>ชื่องาน Event</strong> จะถูกบันทึกพร้อมข้อมูลผู้ลงทะเบียนทุกคน — ใช้สำหรับแยกงาน Event ต่างๆ
+            </div>
+            <div class="form-group">
+              <label>ชื่องาน Event *</label>
+              <input type="text" id="gen-event" placeholder="เช่น: Royaltec Expo 2025, Open House Q1" />
+              <small style="color:var(--text-muted);font-size:11px;margin-top:2px;">ควรระบุชื่อที่ไม่ซ้ำกับงานอื่นๆ</small>
+            </div>
+          </div>
+        </div>
+        <div class="section-card">
+          <div class="section-header">
+            <div class="section-header-left">
+              <span class="section-icon">🔗</span>
+              <div><div class="section-label">URLs & Integration</div></div>
+            </div>
+          </div>
+          <div class="section-body" style="display:flex;flex-direction:column;gap:14px;">
+            <div class="form-group"><label>Logo URL</label><input type="url" id="gen-logo" placeholder="https://..." /></div>
+            <div class="form-group"><label>Facebook / LINE URL (ปุ่มหน้าผลรางวัล)</label><input type="url" id="gen-fb" placeholder="https://www.facebook.com/..." /></div>
+          </div>
+        </div>
+        <div class="section-card">
+          <div class="section-header">
+            <div class="section-header-left">
+              <span class="section-icon">🎡</span>
+              <div><div class="section-label">Animation วงล้อ</div></div>
+            </div>
+          </div>
+          <div class="section-body">
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;">
+              <div class="form-group"><label>รอบขั้นต่ำ</label><input type="number" id="gen-minrot" min="1" max="20" value="5" /></div>
+              <div class="form-group"><label>รอบสูงสุด</label><input type="number" id="gen-maxrot" min="1" max="30" value="10" /></div>
+              <div class="form-group"><label>ระยะเวลา (ms)</label><input type="number" id="gen-dur" min="2000" max="15000" step="500" value="5000" /></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── FORM SETTINGS ── -->
+      <div id="panel-form" class="panel">
+
+        <!-- Section: Form Fields -->
+        <div class="section-card">
+          <div class="section-header">
+            <div class="section-header-left">
+              <span class="section-icon">📝</span>
+              <div>
+                <div class="section-label">Fields หน้าลงทะเบียน</div>
+                <div class="section-desc">เปิด/ปิด, แก้ชื่อ, เพิ่ม field ใหม่ได้เอง</div>
+              </div>
+            </div>
+            <button class="btn btn-outline btn-sm" onclick="addFormField()">+ เพิ่ม Field</button>
+          </div>
+          <div class="section-body">
+            <div class="alert alert-info" style="margin-bottom:14px;">
+              ℹ️ Field พื้นฐาน (ชื่อ, อีเมล ฯลฯ) สามารถเปิด/ปิดและแก้ Label ได้ &nbsp;|&nbsp; Field ที่เพิ่มเองสามารถลบได้
+            </div>
+            <div id="form-fields-list"></div>
+          </div>
+        </div>
+
+        <!-- Section: Brands Checkbox -->
+        <div class="section-card">
+          <div class="section-header">
+            <div class="section-header-left">
+              <span class="section-icon">✅</span>
+              <div>
+                <div class="section-label">แบรนด์/สินค้าที่สนใจ</div>
+                <div class="section-desc">Checkbox ให้ผู้ลงทะเบียนเลือกแบรนด์ที่สนใจ</div>
+              </div>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" class="toggle-input" id="brands-enabled-toggle"
+                onchange="toggleBrandsEnabled(this.checked)" />
+              <div class="toggle-track"></div>
+              <span class="toggle-label" id="brands-enabled-label">ปิด</span>
+            </label>
+          </div>
+          <div class="section-body" id="brands-body">
+            <div style="display:flex;flex-direction:column;gap:14px;">
+              <div class="form-group">
+                <label>หัวข้อ</label>
+                <input type="text" id="brands-heading" placeholder="แบรนด์หรือสินค้าที่สนใจ"
+                  oninput="state.brandsCheckbox.heading=this.value" />
+              </div>
+              <div class="form-group">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                  <label style="margin:0;">รายการแบรนด์</label>
+                  <button class="btn btn-outline btn-sm" onclick="addBrand()">+ เพิ่มแบรนด์</button>
+                </div>
+                <div id="brands-list"></div>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" class="toggle-input" id="brands-required-toggle"
+                  onchange="state.brandsCheckbox.required=this.checked" />
+                <div class="toggle-track"></div>
+                <span class="toggle-label">บังคับเลือกอย่างน้อย 1 แบรนด์</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section: PDPA -->
+        <div class="section-card">
+          <div class="section-header">
+            <div class="section-header-left">
+              <span class="section-icon">🔒</span>
+              <div>
+                <div class="section-label">PDPA Consent</div>
+                <div class="section-desc">ขออนุญาตจัดเก็บข้อมูลส่วนบุคคลตาม พ.ร.บ. PDPA</div>
+              </div>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" class="toggle-input" id="pdpa-enabled-toggle"
+                onchange="togglePdpaEnabled(this.checked)" />
+              <div class="toggle-track"></div>
+              <span class="toggle-label" id="pdpa-enabled-label">ปิด</span>
+            </label>
+          </div>
+          <div class="section-body" id="pdpa-body">
+            <div style="display:flex;flex-direction:column;gap:14px;">
+              <div class="form-group">
+                <label>ข้อความขอความยินยอม</label>
+                <textarea id="pdpa-text" rows="4" style="resize:vertical;"
+                  oninput="state.pdpa.text=this.value"
+                  placeholder="ข้าพเจ้ายินยอมให้บริษัทฯ เก็บรวบรวม ใช้..."></textarea>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" class="toggle-input" id="pdpa-required-toggle"
+                  onchange="state.pdpa.required=this.checked" />
+                <div class="toggle-track"></div>
+                <span class="toggle-label">บังคับยินยอมก่อน Submit ฟอร์ม</span>
+              </label>
+              <div class="preview-box">
+                💡 บันทึกลง Google Sheet คอลัมน์ <strong>PDPA Consent</strong> เป็น <strong>YES</strong> / <strong>NO</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- end panel-form -->
+
+    </div>
+  </div>
+</div>
+
+<div id="toast-msg"></div>
+
+<script src="wheelConfig.js"></script>
+<script>
+// ══════════════════════════════════════════════════════════
+//  State
+// ══════════════════════════════════════════════════════════
+const PALETTE = ['#f9c74f','#4cc9f0','#43aa8b','#f94144','#9b5de5','#ff6b35','#06d6a0','#e9c46a','#118ab2','#e76f51'];
+
+let state = {
+  prizes: [],
+  general: {},
+  remaining: {},     // { prizeId: count }
+  eventName: '',     // ชื่องาน Event
+  formFields: [],    // Form field configs
+  brandsCheckbox: {  // Brands checkbox section
+    enabled: true,
+    heading: 'แบรนด์หรือสินค้าที่สนใจ',
+    items: ['Panduit', 'Allied', 'Eaton', 'Belden'],
+    required: false
+  },
+  pdpa: {            // PDPA consent section
+    enabled: true,
+    text: 'ข้าพเจ้ายินยอมให้บริษัทฯ เก็บรวบรวม ใช้ และ/หรือเปิดเผยข้อมูลส่วนบุคคลของข้าพเจ้า เพื่อวัตถุประสงค์ในการติดต่อสื่อสาร นำเสนอผลิตภัณฑ์และบริการ ตามพระราชบัญญัติคุ้มครองข้อมูลส่วนบุคคล พ.ศ. 2562 (PDPA)',
+    required: true
+  }
+};
+
+// Default form fields (used as fallback)
+function getDefaultFormFields() {
+  return [
+    { key: 'firstName', label: 'ชื่อ',     placeholder: 'ชื่อจริง',             type: 'text',  required: true,  enabled: true,  isBase: true },
+    { key: 'lastName',  label: 'นามสกุล',  placeholder: 'นามสกุล',              type: 'text',  required: true,  enabled: true,  isBase: true },
+    { key: 'email',     label: 'อีเมล',    placeholder: 'example@company.com',  type: 'email', required: true,  enabled: true,  isBase: true },
+    { key: 'phone',     label: 'เบอร์โทร', placeholder: '0812345678',           type: 'tel',   required: true,  enabled: true,  isBase: true },
+    { key: 'position',  label: 'ตำแหน่ง',  placeholder: 'Engineer / Manager',   type: 'text',  required: true,  enabled: true,  isBase: true },
+    { key: 'company',   label: 'บริษัท',   placeholder: 'ชื่อบริษัท / องค์กร',  type: 'text',  required: true,  enabled: true,  isBase: true },
+  ];
+}
+
+let syncTimer = null;
+
+// ══════════════════════════════════════════════════════════
+//  Init
+// ══════════════════════════════════════════════════════════
+async function init() {
+  setupNav();
+  await loadFromServer();
+  startAutoRefresh();
+}
+
+function setupNav() {
+  document.querySelectorAll('.nav-item').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      const pid = btn.dataset.panel;
+      document.getElementById('panel-' + pid).classList.add('active');
+      
+      const titles = {
+        prizes:  { title: '🎁 ของรางวัล',      sub: 'จัดการของรางวัล + ดูจำนวนคงเหลือแบบ real-time' },
+        general: { title: '🔧 ตั้งค่าทั่วไป',   sub: 'URLs, Logo และ Animation' },
+        form:    { title: '📋 หน้าลงทะเบียน', sub: 'Fields, แบรนด์, PDPA — ปรับแต่งฟอร์มลงทะเบียน' },
+      };
+      // Render form panel on first open
+      if (pid === 'form') renderFormPanel();
+      document.getElementById('panel-title').textContent = titles[pid]?.title || '';
+      document.getElementById('panel-sub').textContent = titles[pid]?.sub || '';
+    });
+  });
+
+  ['gen-event','gen-logo','gen-fb','gen-minrot','gen-maxrot','gen-dur'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', syncGeneral);
+  });
+}
+
+// ══════════════════════════════════════════════════════════
+//  Load from Server
+// ══════════════════════════════════════════════════════════
+async function loadFromServer() {
+  showLoading(true);
+  setSyncStatus('loading', 'กำลังโหลด...');
+  
+  try {
+    // Load config
+    const config = await loadConfigFromServer();
+    
+    if (config) {
+      state.prizes         = config.prizes || WHEEL_CONFIG.prizes || [];
+      state.eventName      = config.eventName || '';
+      state.formFields     = config.formFields     || getDefaultFormFields();
+      state.brandsCheckbox = config.brandsCheckbox || state.brandsCheckbox;
+      state.pdpa           = config.pdpa           || state.pdpa;
+      state.general = {
+        logoUrl: config.logoUrl || WHEEL_CONFIG.logoUrl || '',
+        fbUrl:   config.lineAddFriendUrl || WHEEL_CONFIG.lineAddFriendUrl || '',
+        minRot:  config.spin?.minRotations || 5,
+        maxRot:  config.spin?.maxRotations || 10,
+        duration: config.spin?.durationMs || 5000
+      };
+    } else {
+      // Fallback to local config
+      state.prizes     = WHEEL_CONFIG.prizes || [];
+      state.eventName  = '';
+      state.formFields = WHEEL_CONFIG.formFields || getDefaultFormFields();
+      state.brandsCheckbox = WHEEL_CONFIG.brandsCheckbox || state.brandsCheckbox;
+      state.pdpa           = WHEEL_CONFIG.pdpa           || state.pdpa;
+      state.general = {
+        logoUrl:  WHEEL_CONFIG.logoUrl || '',
+        fbUrl:    WHEEL_CONFIG.lineAddFriendUrl || '',
+        minRot:   WHEEL_CONFIG.spin?.minRotations || 5,
+        maxRot:   WHEEL_CONFIG.spin?.maxRotations || 10,
+        duration: WHEEL_CONFIG.spin?.durationMs || 5000
+      };
+    }
+    
+    // Load remaining counts
+    const remaining = await getRemainingPrizes();
+    if (remaining) {
+      state.remaining = remaining;
+    } else {
+      // Initialize from config quantities
+      state.remaining = {};
+      state.prizes.forEach(p => {
+        state.remaining[p.id] = p.quantity;
+      });
+    }
+    
+    renderPrizes();
+    loadGeneral();
+    setSyncStatus('success', 'เชื่อมต่อแล้ว');
+    hideConnectionAlert();
+    
+  } catch (error) {
+    console.error('Load error:', error);
+    setSyncStatus('error', 'ไม่สามารถเชื่อมต่อได้');
+    showConnectionAlert();
+    
+    // Fallback to local config
+    state.prizes         = WHEEL_CONFIG.prizes || [];
+    state.eventName      = '';
+    state.formFields     = WHEEL_CONFIG.formFields     || getDefaultFormFields();
+    state.brandsCheckbox = WHEEL_CONFIG.brandsCheckbox || state.brandsCheckbox;
+    state.pdpa           = WHEEL_CONFIG.pdpa           || state.pdpa;
+    state.general = {
+      logoUrl:  WHEEL_CONFIG.logoUrl || '',
+      fbUrl:    WHEEL_CONFIG.lineAddFriendUrl || '',
+      minRot:   WHEEL_CONFIG.spin?.minRotations || 5,
+      maxRot:   WHEEL_CONFIG.spin?.maxRotations || 10,
+      duration: WHEEL_CONFIG.spin?.durationMs || 5000
+    };
+    state.remaining = {};
+    state.prizes.forEach(p => { state.remaining[p.id] = p.quantity; });
+    
+    renderPrizes();
+    loadGeneral();
+  }
+  
+  showLoading(false);
+}
+
+// ══════════════════════════════════════════════════════════
+//  Save to Server
+// ══════════════════════════════════════════════════════════
+async function saveToServer() {
+  const btn = document.getElementById('save-btn');
+  btn.disabled = true;
+  setSyncStatus('loading', 'กำลังบันทึก...');
+  
+  try {
+    syncGeneral();
+    
+    const config = {
+      eventName:      state.eventName || 'Default Event',
+      prizes:         state.prizes,
+      formFields:     state.formFields,
+      brandsCheckbox: state.brandsCheckbox,
+      pdpa:           state.pdpa,
+      logoUrl:         state.general.logoUrl,
+      lineAddFriendUrl: state.general.fbUrl,
+      wheel: {
+        fontSize: 13,
+        fontFamily: "'Kanit', sans-serif",
+        centerCircleColor: "#162c3b",
+        centerCircleBorderColor: "#ffd700",
+        textRadiusRatio: 0.8,
+        iconGap: 28
+      },
+      spin: {
+        minRotations: state.general.minRot,
+        maxRotations: state.general.maxRot,
+        durationMs:   state.general.duration,
+        easing: "cubic-bezier(0.17, 0.67, 0.12, 0.99)"
+      }
+    };
+    
+    const success = await saveConfigToServer(config);
+    
+    if (success) {
+      setSyncStatus('success', 'บันทึกสำเร็จ');
+      toast('💾 บันทึกไปยัง Google Sheets แล้ว', 'ok');
+      // Reload remaining to update stock
+      const remaining = await getRemainingPrizes();
+      if (remaining) {
+        state.remaining = remaining;
+        renderPrizes();
+      }
+    } else {
+      throw new Error('Save failed');
+    }
+    
+  } catch (error) {
+    console.error('Save error:', error);
+    setSyncStatus('error', 'บันทึกล้มเหลว');
+    toast('❌ ไม่สามารถบันทึกได้ — ตรวจสอบการเชื่อมต่อ', 'err');
+  }
+  
+  btn.disabled = false;
+}
+
+// ══════════════════════════════════════════════════════════
+//  Auto-refresh remaining counts
+// ══════════════════════════════════════════════════════════
+function startAutoRefresh() {
+  // Refresh every 10 seconds
+  setInterval(async () => {
+    try {
+      const remaining = await getRemainingPrizes();
+      if (remaining) {
+        state.remaining = remaining;
+        renderPrizes();
+      }
+    } catch (e) {
+      console.log('Auto-refresh failed:', e);
+    }
+  }, 10000);
+}
+
+// ══════════════════════════════════════════════════════════
+//  PRIZES
+// ══════════════════════════════════════════════════════════
+function renderPrizes() {
+  const totalInitial = state.prizes.reduce((s, p) => s + +p.quantity, 0);
+  const totalRemaining = Object.values(state.remaining).reduce((s, v) => s + v, 0);
+  
+  document.getElementById('total-qty').textContent = totalInitial;
+  document.getElementById('total-remaining').textContent = totalRemaining;
+
+  const list = document.getElementById('prizes-list');
+  list.innerHTML = '';
+
+  state.prizes.forEach((p, i) => {
+    const remaining = state.remaining[p.id] ?? p.quantity;
+    const used = p.quantity - remaining;
+    const prob = totalInitial > 0 ? ((p.quantity / totalInitial) * 100).toFixed(1) : 0;
+    
+    let stockClass = 'high', stockText = 'มีเหลือเยอะ';
+    if (remaining === 0) {
+      stockClass = 'out';
+      stockText = 'หมดแล้ว';
+    } else if (remaining <= p.quantity * 0.2) {
+      stockClass = 'low';
+      stockText = 'ใกล้หมด';
+    } else if (remaining <= p.quantity * 0.5) {
+      stockClass = 'medium';
+      stockText = 'ปานกลาง';
+    }
+    
+    const card = document.createElement('div');
+    card.className = 'prize-card';
+
+    const presetDots = PALETTE.map(c =>
+      `<div class="color-dot" style="background:${c}" title="${c}" onclick="setPrizeColor(${i},'${c}')"></div>`
+    ).join('');
+
+    card.innerHTML = `
+      <div class="prize-card-header">
+        <div class="prize-card-title">
+          <div class="prize-badge" style="background:${p.color}22;border:1px solid ${p.color}55;">
+            <span id="badge-icon-${i}">${p.icon}</span>
+          </div>
+          <span>${esc(p.label) || 'รางวัล #' + (i+1)}</span>
+          <span class="chip">${prob}% โอกาส</span>
+          <span class="stock-badge ${stockClass}">
+            📦 คงเหลือ: ${remaining}/${p.quantity} ${stockText}
+          </span>
+        </div>
+        <button class="btn btn-danger btn-sm btn-icon" onclick="removePrize(${i})">✕</button>
+      </div>
+
+      <div class="prize-grid">
+        <div class="form-group">
+          <label>ชื่อรางวัล *</label>
+          <input type="text" value="${esc(p.label)}" placeholder="ชื่อของรางวัล"
+            oninput="setPrize(${i},'label',this.value)" />
+        </div>
+        <div class="form-group">
+          <label>จำนวนเริ่มต้น (กำหนดโอกาส)</label>
+          <div class="qty-stepper">
+            <button class="btn btn-outline btn-sm btn-icon" onclick="stepQty(${i},-1)">−</button>
+            <input type="number" value="${p.quantity}" min="0" max="9999"
+              oninput="setPrize(${i},'quantity',+this.value)" />
+            <button class="btn btn-outline btn-sm btn-icon" onclick="stepQty(${i},1)">+</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>สี Slice</label>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input type="color" value="${p.color}" oninput="setPrize(${i},'color',this.value)" />
+            <span style="font-size:11px;color:var(--text-muted);">${p.color}</span>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>สีตัวอักษร</label>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input type="color" value="${p.textColor}" oninput="setPrize(${i},'textColor',this.value)" />
+            <span style="font-size:11px;color:var(--text-muted);">${p.textColor}</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:12px;margin-top:12px;align-items:end;flex-wrap:wrap;">
+        <div class="form-group" style="flex:0 0 90px;">
+          <label>Emoji Icon</label>
+          <input type="text" value="${esc(p.icon)}" placeholder="🎁" maxlength="4"
+            oninput="setPrize(${i},'icon',this.value);document.getElementById('badge-icon-${i}').textContent=this.value"
+            style="font-size:20px;text-align:center;" />
+        </div>
+        <div class="form-group" style="flex:1;min-width:160px;">
+          <label>สีด่วน (คลิกเพื่อใช้)</label>
+          <div class="color-presets">${presetDots}</div>
+        </div>
+      </div>
+
+      <div class="prob-bar-wrap">
+        <div class="prob-bar-label">
+          <span>📊 สถิติการใช้งาน</span>
+          <span>ใช้ไป ${used} ชิ้น | คงเหลือ ${remaining} ชิ้น</span>
+        </div>
+        <div class="prob-bar-track">
+          <div class="prob-bar-fill" style="width:${totalInitial > 0 ? (used/totalInitial)*100 : 0}%;background:${remaining === 0 ? 'var(--danger)' : p.color};"></div>
+        </div>
+      </div>
+    `;
+    list.appendChild(card);
+  });
+}
+
+function setPrize(i, key, val) {
+  state.prizes[i][key] = val;
+  if (key === 'quantity' || key === 'label') renderPrizes();
+}
+
+function setPrizeColor(i, color) {
+  state.prizes[i].color = color;
+  renderPrizes();
+}
+
+function stepQty(i, d) {
+  state.prizes[i].quantity = Math.max(0, (+state.prizes[i].quantity || 0) + d);
+  renderPrizes();
+}
+
+function removePrize(i) {
+  if (!confirm('ลบรางวัลนี้?')) return;
+  state.prizes.splice(i, 1);
+  renderPrizes();
+}
+
+function addPrize() {
+  const color = PALETTE[state.prizes.length % PALETTE.length];
+  const newPrize = {
+    id: 'prize_' + Date.now(),
+    label: '',
+    weight: 10,
+    quantity: 10,
+    color,
+    textColor: '#ffffff',
+    icon: '🎁'
+  };
+  state.prizes.push(newPrize);
+  state.remaining[newPrize.id] = newPrize.quantity;
+  renderPrizes();
+  setTimeout(() => document.getElementById('prizes-list').lastElementChild?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
+}
+
+// ══════════════════════════════════════════════════════════
+//  GENERAL
+// ══════════════════════════════════════════════════════════
+function loadGeneral() {
+  const g = state.general;
+  document.getElementById('gen-event').value = state.eventName || '';
+  document.getElementById('gen-logo').value = g.logoUrl || '';
+  document.getElementById('gen-fb').value = g.fbUrl || '';
+  document.getElementById('gen-minrot').value = g.minRot || 5;
+  document.getElementById('gen-maxrot').value = g.maxRot || 10;
+  document.getElementById('gen-dur').value = g.duration || 5000;
+}
+
+function syncGeneral() {
+  state.eventName = document.getElementById('gen-event').value;
+  state.general = {
+    logoUrl: document.getElementById('gen-logo').value,
+    fbUrl: document.getElementById('gen-fb').value,
+    minRot: +document.getElementById('gen-minrot').value,
+    maxRot: +document.getElementById('gen-maxrot').value,
+    duration: +document.getElementById('gen-dur').value,
+  };
+}
+
+// ══════════════════════════════════════════════════════════
+//  UI Helpers
+// ══════════════════════════════════════════════════════════
+function setSyncStatus(state, text) {
+  const el = document.getElementById('sync-status');
+  const textEl = document.getElementById('sync-text');
+  el.className = 'sync-indicator ' + state;
+  textEl.textContent = text;
+}
+
+function showLoading(show) {
+  document.getElementById('loading').classList.toggle('active', show);
+}
+
+function showConnectionAlert() {
+  document.getElementById('connection-alert').style.display = 'flex';
+}
+
+function hideConnectionAlert() {
+  document.getElementById('connection-alert').style.display = 'none';
+}
+
+function toast(msg, type = '') {
+  const el = document.getElementById('toast-msg');
+  el.textContent = msg;
+  el.className = 'show ' + type;
+  clearTimeout(el._t);
+  el._t = setTimeout(() => { el.className = ''; }, 2800);
+}
+
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ══════════════════════════════════════════════════════════
+//  FORM SETTINGS PANEL
+// ══════════════════════════════════════════════════════════
+function renderFormPanel() {
+  renderFormFields();
+  renderBrandsList();
+  loadBrandsUI();
+  loadPdpaUI();
+}
+
+// ── Form Fields ────────────────────────────────────────────
+function renderFormFields() {
+  const list = document.getElementById('form-fields-list');
+  if (!list) return;
+  const fields = state.formFields;
+  if (!fields || fields.length === 0) {
+    list.innerHTML = '<p style="color:var(--text-muted);font-size:13px;">ยังไม่มี fields</p>';
+    return;
+  }
+
+  list.innerHTML = fields.map((f, i) => {
+    const isBase = f.isBase;
+    const typeOptions = ['text','email','tel','number'].map(t =>
+      `<option value="${t}"${f.type===t?' selected':''}>${t}</option>`
+    ).join('');
+
+    return `
+    <div class="field-card${f.enabled===false?' disabled':''}" id="ff-${i}">
+      <div class="field-card-header">
+        <div class="field-card-header-left">
+          <label class="toggle" style="margin:0;">
+            <input type="checkbox" class="toggle-input" ${f.enabled!==false?'checked':''}
+              onchange="setFF(${i},'enabled',this.checked)" />
+            <div class="toggle-track"></div>
+          </label>
+          <span class="field-card-title">${esc(f.label || f.key)}</span>
+          ${isBase ? '<span class="base-badge">พื้นฐาน</span>' : '<span class="base-badge" style="background:rgba(63,185,80,0.1);color:var(--success);border-color:var(--success);">custom</span>'}
+        </div>
+        <div class="field-card-actions">
+          <button class="btn btn-outline btn-sm btn-icon" onclick="moveFF(${i},-1)" title="เลื่อนขึ้น" ${i===0?'disabled':''}>↑</button>
+          <button class="btn btn-outline btn-sm btn-icon" onclick="moveFF(${i},1)" title="เลื่อนลง" ${i===fields.length-1?'disabled':''}>↓</button>
+          ${!isBase ? `<button class="btn btn-danger btn-sm btn-icon" onclick="removeFF(${i})" title="ลบ">✕</button>` : ''}
+        </div>
+      </div>
+      <div class="field-card-body">
+        <div class="field-grid-4">
+          <div class="form-group">
+            <label>Label ที่แสดง</label>
+            <input type="text" value="${esc(f.label)}" placeholder="ชื่อ field"
+              oninput="setFF(${i},'label',this.value)" />
+          </div>
+          <div class="form-group">
+            <label>Placeholder</label>
+            <input type="text" value="${esc(f.placeholder||'')}" placeholder="ข้อความตัวอย่าง"
+              oninput="setFF(${i},'placeholder',this.value)" />
+          </div>
+          <div class="form-group">
+            <label>ประเภท</label>
+            <select onchange="setFF(${i},'type',this.value)"${isBase?' disabled':''}>
+              ${typeOptions}
+            </select>
+          </div>
+          <div class="form-group" style="align-items:center;">
+            <label>บังคับกรอก</label>
+            <label class="toggle" style="margin-top:6px;">
+              <input type="checkbox" class="toggle-input" ${f.required?'checked':''}
+                onchange="setFF(${i},'required',this.checked)" />
+              <div class="toggle-track"></div>
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function setFF(i, key, val) {
+  if (!state.formFields[i]) return;
+  state.formFields[i][key] = val;
+  if (key === 'enabled') {
+    const card = document.getElementById(`ff-${i}`);
+    if (card) card.classList.toggle('disabled', !val);
+  }
+  if (key === 'label') {
+    const titleEl = document.querySelector(`#ff-${i} .field-card-title`);
+    if (titleEl) titleEl.textContent = val || state.formFields[i].key;
+  }
+}
+
+function moveFF(i, dir) {
+  const fields = state.formFields;
+  const j = i + dir;
+  if (j < 0 || j >= fields.length) return;
+  [fields[i], fields[j]] = [fields[j], fields[i]];
+  renderFormFields();
+}
+
+function removeFF(i) {
+  if (state.formFields[i]?.isBase) return; // ป้องกันลบ base fields
+  if (!confirm(`ลบ field "${state.formFields[i]?.label}" ?`)) return;
+  state.formFields.splice(i, 1);
+  renderFormFields();
+}
+
+function addFormField() {
+  const newField = {
+    key:         'custom_' + Date.now(),
+    label:       'Field ใหม่',
+    placeholder: '',
+    type:        'text',
+    required:    false,
+    enabled:     true,
+    isBase:      false,
+  };
+  state.formFields.push(newField);
+  renderFormFields();
+  // Scroll ไปที่ field ใหม่
+  setTimeout(() => {
+    document.getElementById('form-fields-list')?.lastElementChild?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, 60);
+}
+
+// ── Brands Checkbox ────────────────────────────────────────
+function toggleBrandsEnabled(val) {
+  state.brandsCheckbox.enabled = val;
+  document.getElementById('brands-enabled-label').textContent = val ? 'เปิด' : 'ปิด';
+  document.getElementById('brands-body').style.opacity = val ? '1' : '0.5';
+  document.getElementById('brands-body').style.pointerEvents = val ? '' : 'none';
+}
+
+function loadBrandsUI() {
+  const bc = state.brandsCheckbox;
+  const toggle = document.getElementById('brands-enabled-toggle');
+  const reqToggle = document.getElementById('brands-required-toggle');
+  const headingEl = document.getElementById('brands-heading');
+  if (toggle)    toggle.checked    = bc.enabled !== false;
+  if (reqToggle) reqToggle.checked = bc.required === true;
+  if (headingEl) headingEl.value   = bc.heading || '';
+  toggleBrandsEnabled(bc.enabled !== false);
+  renderBrandsList();
+}
+
+function renderBrandsList() {
+  const list = document.getElementById('brands-list');
+  if (!list) return;
+  const items = state.brandsCheckbox.items || [];
+  list.innerHTML = items.map((item, i) => `
+    <div class="brand-admin-item">
+      <input type="text" value="${esc(item)}" placeholder="ชื่อแบรนด์"
+        oninput="setBrand(${i},this.value)" />
+      <button class="btn btn-danger btn-sm btn-icon" onclick="removeBrand(${i})" title="ลบ">✕</button>
+    </div>
+  `).join('') || '<p style="color:var(--text-muted);font-size:12px;margin:4px 0;">ยังไม่มีแบรนด์ — กด "+ เพิ่มแบรนด์"</p>';
+}
+
+function setBrand(i, val) {
+  state.brandsCheckbox.items[i] = val;
+}
+
+function addBrand() {
+  state.brandsCheckbox.items = state.brandsCheckbox.items || [];
+  state.brandsCheckbox.items.push('แบรนด์ใหม่');
+  renderBrandsList();
+  setTimeout(() => {
+    const inputs = document.querySelectorAll('#brands-list input[type="text"]');
+    inputs[inputs.length - 1]?.focus();
+    inputs[inputs.length - 1]?.select();
+  }, 40);
+}
+
+function removeBrand(i) {
+  state.brandsCheckbox.items.splice(i, 1);
+  renderBrandsList();
+}
+
+// ── PDPA ───────────────────────────────────────────────────
+function togglePdpaEnabled(val) {
+  state.pdpa.enabled = val;
+  document.getElementById('pdpa-enabled-label').textContent = val ? 'เปิด' : 'ปิด';
+  document.getElementById('pdpa-body').style.opacity = val ? '1' : '0.5';
+  document.getElementById('pdpa-body').style.pointerEvents = val ? '' : 'none';
+}
+
+function loadPdpaUI() {
+  const pdpa = state.pdpa;
+  const toggle    = document.getElementById('pdpa-enabled-toggle');
+  const reqToggle = document.getElementById('pdpa-required-toggle');
+  const textEl    = document.getElementById('pdpa-text');
+  if (toggle)    toggle.checked    = pdpa.enabled !== false;
+  if (reqToggle) reqToggle.checked = pdpa.required === true;
+  if (textEl)    textEl.value      = pdpa.text || '';
+  togglePdpaEnabled(pdpa.enabled !== false);
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>

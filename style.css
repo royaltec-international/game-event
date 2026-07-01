@@ -1,0 +1,553 @@
+/* ============================================================
+   style.css
+   Theme: Kanit + Deep Navy Gradient
+   Primary: #2e5a73 → #162c3b
+   ============================================================ */
+
+/* ---------- Google Font ---------- */
+@import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700;900&display=swap');
+
+/* ---------- CSS Variables (เปลี่ยนธีมที่นี่จุดเดียว) ---------- */
+:root {
+  --bg-gradient: linear-gradient(135deg, #2e5a73 0%, #1e3f56 50%, #162c3b 100%);
+  --primary: #2e5a73;
+  --primary-dark: #162c3b;
+  --accent: #ffd700;
+  --accent-hover: #ffec6e;
+  --accent-glow: rgba(255, 215, 0, 0.35);
+  --card-bg: rgba(255, 255, 255, 0.06);
+  --card-border: rgba(255, 255, 255, 0.12);
+  --card-blur: blur(16px);
+  --text-primary: #ffffff;
+  --text-secondary: rgba(255, 255, 255, 0.75);
+  --text-muted: rgba(255, 255, 255, 0.45);
+  --input-bg: rgba(255, 255, 255, 0.08);
+  --input-border: rgba(255, 255, 255, 0.2);
+  --input-focus-border: #ffd700;
+  --success: #43aa8b;
+  --error: #f94144;
+  --shadow-card: 0 8px 32px rgba(0, 0, 0, 0.4);
+  --shadow-btn: 0 4px 20px rgba(255, 215, 0, 0.4);
+  --radius-card: 20px;
+  --radius-input: 10px;
+  --radius-btn: 50px;
+  --font: 'Kanit', sans-serif;
+  --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ---------- Reset & Base ---------- */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font);
+  font-weight: 400;
+  background: var(--bg-gradient);
+  min-height: 100vh;
+  color: var(--text-primary);
+  overflow-x: hidden;
+  position: relative;
+}
+
+/* ---------- Background Decoration ---------- */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 10%, rgba(46, 90, 115, 0.5) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 80% at 80% 90%, rgba(22, 44, 59, 0.7) 0%, transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    radial-gradient(circle at 1px 1px, rgba(255,255,255,0.04) 1px, transparent 0);
+  background-size: 32px 32px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ---------- Main Container ---------- */
+#app {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+}
+
+/* ---------- Page Sections (ควบคุมด้วย JS) ---------- */
+.page-section {
+  display: none;
+  width: 100%;
+  max-width: 540px;
+  animation: fadeInUp 0.5s ease forwards;
+}
+
+.page-section.active {
+  display: block;
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ---------- Card ---------- */
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  backdrop-filter: var(--card-blur);
+  -webkit-backdrop-filter: var(--card-blur);
+  border-radius: var(--radius-card);
+  padding: 40px 36px;
+  box-shadow: var(--shadow-card);
+}
+
+/* ---------- Logo ---------- */
+.logo-wrapper {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 28px;
+}
+
+.logo-img {
+  max-width: 180px;
+  max-height: 80px;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 12px rgba(0,0,0,0.4));
+}
+
+.logo-placeholder {
+  width: 180px;
+  height: 70px;
+  border: 2px dashed var(--input-border);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: 13px;
+  letter-spacing: 0.5px;
+}
+
+/* ---------- Headings ---------- */
+.section-title {
+  font-size: 26px;
+  font-weight: 700;
+  text-align: center;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+  line-height: 1.2;
+}
+
+.section-subtitle {
+  font-size: 14px;
+  font-weight: 300;
+  text-align: center;
+  color: var(--text-secondary);
+  margin-bottom: 28px;
+  line-height: 1.6;
+}
+
+.accent-line {
+  width: 48px;
+  height: 3px;
+  background: linear-gradient(90deg, var(--accent), transparent);
+  border-radius: 2px;
+  margin: 8px auto 24px;
+}
+
+/* ---------- Form ---------- */
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-group.full-width {
+  grid-column: 1 / -1;
+}
+
+.form-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  letter-spacing: 0.3px;
+}
+
+.form-label span.required {
+  color: var(--accent);
+  margin-left: 2px;
+}
+
+.form-input {
+  font-family: var(--font);
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--text-primary);
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius-input);
+  padding: 10px 14px;
+  outline: none;
+  transition: border-color var(--transition), box-shadow var(--transition), background var(--transition);
+  width: 100%;
+}
+
+.form-input::placeholder {
+  color: var(--text-muted);
+  font-weight: 300;
+}
+
+.form-input:focus {
+  border-color: var(--input-focus-border);
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.form-input.error {
+  border-color: var(--error);
+  box-shadow: 0 0 0 3px rgba(249, 65, 68, 0.2);
+}
+
+.field-error {
+  font-size: 11px;
+  color: var(--error);
+  display: none;
+}
+
+.field-error.visible {
+  display: block;
+}
+
+/* ---------- Buttons ---------- */
+.btn {
+  font-family: var(--font);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  border: none;
+  border-radius: var(--radius-btn);
+  padding: 14px 36px;
+  cursor: pointer;
+  transition: all var(--transition);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 24px;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(rgba(255,255,255,0.12), transparent);
+  opacity: 0;
+  transition: opacity var(--transition);
+}
+
+.btn:hover::after { opacity: 1; }
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--accent), #e6a800);
+  color: #162c3b;
+  box-shadow: var(--shadow-btn);
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 28px rgba(255, 215, 0, 0.55);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-outline {
+  background: transparent;
+  color: var(--accent);
+  border: 2px solid var(--accent);
+  box-shadow: none;
+  margin-top: 12px;
+}
+
+.btn-outline:hover {
+  background: rgba(255, 215, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+/* ---------- Wheel Section ---------- */
+#wheel-section .card {
+  max-width: 640px;
+  text-align: center;
+}
+
+.wheel-container {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 20px 0;
+}
+
+.wheel-pointer {
+  position: absolute;
+  top: -18px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,0.5));
+}
+
+canvas#wheelCanvas {
+  border-radius: 50%;
+  box-shadow: 0 0 0 6px rgba(255,215,0,0.25), 0 8px 40px rgba(0,0,0,0.5);
+  transition: box-shadow 0.3s;
+}
+
+canvas#wheelCanvas.spinning {
+  box-shadow: 0 0 0 6px rgba(255,215,0,0.5), 0 8px 60px rgba(0,0,0,0.6);
+}
+
+/* ---------- Result Section ---------- */
+.result-icon {
+  font-size: 72px;
+  text-align: center;
+  margin: 0 0 16px;
+  animation: bounceIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes bounceIn {
+  0%   { transform: scale(0); opacity: 0; }
+  60%  { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1); }
+}
+
+.result-prize-name {
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--accent);
+  text-align: center;
+  margin-bottom: 8px;
+  text-shadow: 0 0 20px var(--accent-glow);
+}
+
+.result-instruction {
+  font-size: 15px;
+  font-weight: 400;
+  color: var(--text-secondary);
+  text-align: center;
+  background: rgba(255,215,0,0.08);
+  border: 1px solid rgba(255,215,0,0.2);
+  border-radius: 12px;
+  padding: 14px 20px;
+  margin: 16px 0 0;
+  line-height: 1.7;
+}
+
+.result-instruction strong {
+  color: var(--accent);
+  font-weight: 600;
+  display: block;
+  font-size: 16px;
+  margin-bottom: 4px;
+}
+
+/* ---------- Loading Spinner ---------- */
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(0,0,0,0.3);
+  border-top-color: #162c3b;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  display: inline-block;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ---------- Toast Notification ---------- */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(80px);
+  background: rgba(22, 44, 59, 0.95);
+  border: 1px solid var(--card-border);
+  backdrop-filter: blur(12px);
+  color: var(--text-primary);
+  font-family: var(--font);
+  font-size: 14px;
+  padding: 12px 24px;
+  border-radius: 50px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  z-index: 1000;
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  white-space: nowrap;
+}
+
+.toast.show {
+  transform: translateX(-50%) translateY(0);
+}
+
+.toast.success { border-color: var(--success); }
+.toast.error   { border-color: var(--error); }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 560px) {
+  .card {
+    padding: 28px 20px;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .form-group.full-width {
+    grid-column: 1;
+  }
+
+  .section-title {
+    font-size: 22px;
+  }
+
+  #wheel-section .card {
+    padding: 24px 16px;
+  }
+}
+
+@media (min-width: 640px) {
+  #wheel-section {
+    max-width: 680px;
+  }
+}
+
+/* ---------- Brands Checkbox Section ---------- */
+.brands-section {
+  margin: 12px 0 0;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+}
+
+.brands-heading {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+  letter-spacing: 0.3px;
+}
+
+.brands-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 8px;
+}
+
+.brand-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text-primary);
+  font-family: var(--font);
+  transition: border-color 0.2s, background 0.2s;
+  user-select: none;
+}
+
+.brand-item:hover {
+  border-color: var(--accent);
+  background: rgba(255, 215, 0, 0.06);
+}
+
+.brand-item input[type="checkbox"] {
+  accent-color: var(--accent);
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+/* ---------- PDPA Consent Section ---------- */
+.pdpa-section {
+  margin: 12px 0 0;
+  padding: 14px 16px;
+  background: rgba(88, 166, 255, 0.04);
+  border: 1px solid rgba(88, 166, 255, 0.15);
+  border-radius: 10px;
+}
+
+.pdpa-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+  line-height: 1.55;
+}
+
+.pdpa-label span {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.pdpa-label span .required {
+  color: var(--accent);
+}
+
+.pdpa-checkbox {
+  margin-top: 2px;
+  flex-shrink: 0;
+  accent-color: var(--accent);
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+/* ---------- Confetti (Canvas overlay) ---------- */
+#confetti-canvas {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 999;
+}

@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ลุ้นรางวัล — หมุนวงล้อ</title>
+
+  <!-- Kanit Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700;900&display=swap" rel="stylesheet" />
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- Confetti overlay -->
+  <canvas id="confetti-canvas"></canvas>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="toast" role="alert" aria-live="polite"></div>
+
+  <!-- App Root -->
+  <div id="app">
+
+    <!-- ======================================================
+         PAGE 1: ลงทะเบียน
+         ====================================================== -->
+    <section id="form-section" class="page-section active" aria-label="หน้าลงทะเบียน">
+      <div class="card">
+
+        <!-- Logo -->
+        <div class="logo-wrapper">
+          <img
+            id="logo-img"
+            class="logo-img"
+            src=""
+            alt="Company Logo"
+          />
+          <div id="logo-fallback" class="logo-placeholder" style="display:none;">
+            🏢 Company Logo
+          </div>
+        </div>
+
+        <!-- Heading -->
+        <h1 class="section-title">ลงทะเบียนรับสิทธิ์</h1>
+        <div class="accent-line"></div>
+        <p class="section-subtitle">กรอกข้อมูลให้ครบถ้วน เพื่อร่วมลุ้นรับของรางวัล</p>
+
+        <!-- Form — Fields rendered dynamically by script.js based on WHEEL_CONFIG -->
+        <form id="registration-form" novalidate>
+
+          <!-- Form Fields (text/email/tel/number) — rendered by renderForm() -->
+          <div id="form-fields-container" class="form-grid"></div>
+
+          <!-- Brands Checkbox — rendered by renderForm() if enabled -->
+          <div id="brands-container"></div>
+
+          <!-- PDPA Consent — rendered by renderForm() if enabled -->
+          <div id="pdpa-container"></div>
+
+          <button type="submit" id="submit-btn" class="btn btn-primary">
+            ถัดไป — หมุนวงล้อ 🎡
+          </button>
+        </form>
+
+      </div>
+    </section>
+
+    <!-- ======================================================
+         PAGE 2: หมุนวงล้อ
+         ====================================================== -->
+    <section id="wheel-section" class="page-section" aria-label="หน้าหมุนวงล้อ">
+      <div class="card" style="max-width:640px;text-align:center;">
+
+        <h2 class="section-title">หมุนเพื่อลุ้นรับรางวัล!</h2>
+        <div class="accent-line"></div>
+        <p class="section-subtitle">กดปุ่มด้านล่างเพื่อหมุนวงล้อ — โชคดีนะครับ 🍀</p>
+
+        <!-- Wheel -->
+        <div class="wheel-container">
+          <!-- Pointer (SVG Arrow) -->
+          <div id="wheel-pointer" class="wheel-pointer">
+            <svg width="36" height="40" viewBox="0 0 36 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <polygon points="18,36 2,4 34,4" fill="#ffd700" stroke="#162c3b" stroke-width="2"/>
+            </svg>
+          </div>
+          <!-- Canvas -->
+          <canvas id="wheelCanvas" width="380" height="380" aria-label="วงล้อรางวัล"></canvas>
+        </div>
+
+        <button id="spin-btn" class="btn btn-primary" style="max-width:280px;margin:20px auto 0;">
+          🎯 หมุนวงล้อ!
+        </button>
+
+      </div>
+    </section>
+
+    <!-- ======================================================
+         PAGE 3: ผลรางวัล
+         ====================================================== -->
+    <section id="result-section" class="page-section" aria-label="หน้าผลรางวัล">
+      <div class="card" style="text-align:center;">
+
+        <h2 class="section-title">🎉 ยินดีด้วย!</h2>
+        <div class="accent-line"></div>
+        <p class="section-subtitle">คุณได้รับรางวัล</p>
+
+        <!-- Prize Display -->
+        <div id="result-icon" class="result-icon">🎁</div>
+        <div id="result-prize-name" class="result-prize-name">—</div>
+
+        <!-- Instruction -->
+        <div class="result-instruction">
+          <strong>📱 แสดงหน้าจอนี้ให้ทีมงาน</strong>
+          เพื่อรับของรางวัลของคุณ<br/>
+          ทีมงานจะช่วยจัดเตรียมของรางวัลให้
+        </div>
+
+        <!-- Done Button -->
+        <button id="done-btn" class="btn btn-primary" style="margin-top:28px;">
+          ติดตามเราบน Facebook 💚
+        </button>
+
+      </div>
+    </section>
+
+  </div><!-- end #app -->
+
+  <!-- Scripts (โหลด Config ก่อน แล้วค่อย Main Script) -->
+  <script src="wheelConfig.js"></script>
+  <script src="script.js"></script>
+
+</body>
+</html>
