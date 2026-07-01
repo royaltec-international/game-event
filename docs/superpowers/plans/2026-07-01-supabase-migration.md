@@ -1246,20 +1246,20 @@ async function createEvent(name, slug) {
   };
 
   const { data, error } = await supabase.from('events').insert({ name, slug, config: defaultConfig }).select().single();
-  if (error) { toast('สร้าง Event ไม่สำเร็จ: ' + error.message, 'error'); return; }
+  if (error) { toast('สร้าง Event ไม่สำเร็จ: ' + error.message, 'err'); return; }
 
   await loadEventList();
   await selectEvent(data.id);
-  toast('สร้าง Event สำเร็จ', 'success');
+  toast('สร้าง Event สำเร็จ', 'ok');
 }
 
 async function setActiveEvent(eventId) {
   if (!eventId) return;
   await supabase.from('events').update({ is_active: false }).neq('id', eventId);
   const { error } = await supabase.from('events').update({ is_active: true }).eq('id', eventId);
-  if (error) { toast('ตั้ง Event ปัจจุบันไม่สำเร็จ: ' + error.message, 'error'); return; }
+  if (error) { toast('ตั้ง Event ปัจจุบันไม่สำเร็จ: ' + error.message, 'err'); return; }
   await loadEventList();
-  toast('ตั้งเป็น Event ปัจจุบันแล้ว', 'success');
+  toast('ตั้งเป็น Event ปัจจุบันแล้ว', 'ok');
 }
 
 function copyEventLink() {
@@ -1268,7 +1268,7 @@ function copyEventLink() {
   if (!slug) return;
   const url = buildEventUrl(location.origin, slug);
   navigator.clipboard.writeText(url);
-  toast('คัดลอกลิงก์แล้ว: ' + url, 'success');
+  toast('คัดลอกลิงก์แล้ว: ' + url, 'ok');
 }
 ```
 
@@ -1422,7 +1422,7 @@ async function loadRegistrations() {
     .eq('event_id', state.currentEventId)
     .order('created_at', { ascending: false });
 
-  if (error) { toast('โหลดรายชื่อไม่สำเร็จ: ' + error.message, 'error'); return; }
+  if (error) { toast('โหลดรายชื่อไม่สำเร็จ: ' + error.message, 'err'); return; }
 
   state.registrations = data;
   renderRegistrationsTable(state.registrations);
@@ -1575,24 +1575,24 @@ async function deleteRegistration(id) {
   if (!confirm('ยืนยันลบผู้ลงทะเบียนรายนี้? กู้คืนไม่ได้')) return;
 
   const { error } = await supabase.from('registrations').delete().eq('id', id);
-  if (error) { toast('ลบไม่สำเร็จ: ' + error.message, 'error'); return; }
+  if (error) { toast('ลบไม่สำเร็จ: ' + error.message, 'err'); return; }
 
   state.registrations = state.registrations.filter(r => r.id !== id);
   renderRegistrationsTable(regFilteredRows.filter(r => r.id !== id));
-  toast('ลบสำเร็จ', 'success');
+  toast('ลบสำเร็จ', 'ok');
 }
 
 async function deleteSelectedRegistrations() {
   const ids = [...document.querySelectorAll('.reg-row-check:checked')].map(cb => cb.value);
-  if (ids.length === 0) { toast('ยังไม่ได้เลือกแถวใดเลย', 'error'); return; }
+  if (ids.length === 0) { toast('ยังไม่ได้เลือกแถวใดเลย', 'err'); return; }
   if (!confirm(`ยืนยันลบผู้ลงทะเบียน ${ids.length} รายการ? กู้คืนไม่ได้`)) return;
 
   const { error } = await supabase.from('registrations').delete().in('id', ids);
-  if (error) { toast('ลบไม่สำเร็จ: ' + error.message, 'error'); return; }
+  if (error) { toast('ลบไม่สำเร็จ: ' + error.message, 'err'); return; }
 
   state.registrations = state.registrations.filter(r => !ids.includes(r.id));
   renderRegistrationsTable(regFilteredRows.filter(r => !ids.includes(r.id)));
-  toast(`ลบสำเร็จ ${ids.length} รายการ`, 'success');
+  toast(`ลบสำเร็จ ${ids.length} รายการ`, 'ok');
 }
 ```
 
