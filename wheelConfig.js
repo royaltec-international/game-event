@@ -60,98 +60,81 @@ const WHEEL_CONFIG = {
 };
 
 // ============================================================
-//  Real-time Sync API
+//  Real-time Sync API — Supabase
 // ============================================================
 
-// โหลด Config จาก Google Sheets
+let CURRENT_EVENT_ID = null;
+
+// โหลด Config จาก Supabase (ตาม ?event=<slug> ใน URL, fallback เป็น event ที่ is_active)
 async function loadConfigFromServer() {
-  if (!WHEEL_CONFIG.googleScriptUrl) return null;
-  
-  try {
-    const response = await fetch(WHEEL_CONFIG.googleScriptUrl + '?action=getConfig', {
-      method: 'GET',
-      headers: { 'Accept': 'application/json' }
-    });
-    
-    if (!response.ok) throw new Error('Failed to load config');
-    const data = await response.json();
-    
-    if (data.success && data.config) {
-      return data.config;
-    }
-    return null;
-  } catch (error) {
-    console.error('Error loading config:', error);
+  const slug = resolveEventSlug(location.search);
+
+  const query = slug
+    ? supabase.from('events').select('*').eq('slug', slug).single()
+    : supabase.from('events').select('*').eq('is_active', true).single();
+
+  const { data, error } = await query;
+  if (error || !data) {
+    console.error('Error loading event config:', error);
     return null;
   }
+
+  CURRENT_EVENT_ID = data.id;
+  return { ...data.config, eventName: data.name, __eventId: data.id };
 }
 
-// บันทึก Config ไปยัง Google Sheets
-async function saveConfigToServer(config) {
-  if (!WHEEL_CONFIG.googleScriptUrl) return false;
+// โหลด Config ของ event ที่ระบุ id ตรงๆ (ใช้โดยหน้า admin — event ที่เลือกใน dropdown อาจไม่ใช่ event ที่ is_active)
+async function loadEventConfigById(eventId) {
+  const { data, error } = await supabase.from('events').select('*').eq('id', eventId).single();
+  if (error || !data) {
+    console.error('Error loading event by id:', error);
+    return null;
+  }
 
-  try {
-    // ใช้ Content-Type: text/plain เพื่อหลีกเลี่ยง CORS preflight
-    // Google Apps Script ไม่รองรับ OPTIONS request จาก Content-Type: application/json
-    const response = await fetch(WHEEL_CONFIG.googleScriptUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({
-        action: 'saveConfig',
-        config: config
-      })
-    });
+  CURRENT_EVENT_ID = data.id;
+  return { ...data.config, eventName: data.name, __eventId: data.id };
+}
 
-    const data = await response.json();
-    return data.success;
-  } catch (error) {
+// บันทึก Config กลับไปยัง Supabase (ต้อง login เป็น authenticated)
+async function saveConfigToServer(eventId, config) {
+  const { error } = await supabase.from('events').update({ config }).eq('id', eventId);
+  if (error) {
     console.error('Error saving config:', error);
     return false;
   }
+  return true;
 }
 
 // ดึงจำนวนของรางวัลคงเหลือแบบ real-time
 async function getRemainingPrizes() {
-  if (!WHEEL_CONFIG.googleScriptUrl) return null;
-  
-  try {
-    const response = await fetch(WHEEL_CONFIG.googleScriptUrl + '?action=getRemaining', {
-      method: 'GET',
-      headers: { 'Accept': 'application/json' }
-    });
-    
-    if (!response.ok) throw new Error('Failed to get remaining prizes');
-    const data = await response.json();
-    
-    if (data.success && data.remaining) {
-      return data.remaining; // { prizeId: remainingCount, ... }
-    }
-    return null;
-  } catch (error) {
+  if (!CURRENT_EVENT_ID) return null;
+
+  const { data, error } = await supabase
+    .from('prizes')
+    .select('id, quantity, used')
+    .eq('event_id', CURRENT_EVENT_ID);
+
+  if (error || !data) {
     console.error('Error getting remaining prizes:', error);
     return null;
   }
+
+  return computeRemainingMap(data);
 }
 
-// อัปเดตจำนวนของรางวัลหลังจากมีคนได้รับ
-async function updatePrizeCount(prizeId, decrement = 1) {
-  if (!WHEEL_CONFIG.googleScriptUrl) return false;
+// ลดสต็อกของรางวัลแบบ atomic ผ่าน RPC (คืนค่า remaining ใหม่ หรือ null ถ้าของหมดพอดี)
+async function decrementPrizeRpc(prizeId) {
+  if (!CURRENT_EVENT_ID) return null;
 
-  try {
-    const response = await fetch(WHEEL_CONFIG.googleScriptUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({
-        action: 'decrementPrize',
-        prizeId: prizeId,
-        amount: decrement
-      })
-    });
+  const { data, error } = await supabase.rpc('decrement_prize', {
+    p_event_id: CURRENT_EVENT_ID,
+    p_prize_id: prizeId,
+  });
 
-    const data = await response.json();
-    return data.success;
-  } catch (error) {
-    console.error('Error updating prize count:', error);
-    return false;
+  if (error) {
+    console.error('Error decrementing prize:', error);
+    return null;
   }
+
+  return data;
 }
