@@ -548,18 +548,26 @@
 
     dom.spinBtn.disabled = true;
 
-    // Sync ล่าสุดจาก Supabase ก่อนคำนวณวงล้อ ลดโอกาสชนกับคนอื่นให้เหลือน้อยที่สุด
-    const freshRemaining = await getRemainingPrizes();
-    if (freshRemaining) {
-      WHEEL_CONFIG.prizes.forEach(p => {
-        if (freshRemaining[p.id] !== undefined) state.prizesRemaining[p.id] = freshRemaining[p.id];
-      });
-      drawWheel(state.currentAngle);
-    }
+    let active;
+    try {
+      // Sync ล่าสุดจาก Supabase ก่อนคำนวณวงล้อ ลดโอกาสชนกับคนอื่นให้เหลือน้อยที่สุด
+      const freshRemaining = await getRemainingPrizes();
+      if (freshRemaining) {
+        WHEEL_CONFIG.prizes.forEach(p => {
+          if (freshRemaining[p.id] !== undefined) state.prizesRemaining[p.id] = freshRemaining[p.id];
+        });
+        drawWheel(state.currentAngle);
+      }
 
-    const active = getActiveSegments();
-    if (active.length === 0) {
-      showToast('ของรางวัลหมดแล้ว!', 'error');
+      active = getActiveSegments();
+      if (active.length === 0) {
+        showToast('ของรางวัลหมดแล้ว!', 'error');
+        dom.spinBtn.disabled = false;
+        return;
+      }
+    } catch (err) {
+      console.error(err);
+      showToast('เกิดข้อผิดพลาด กรุณาลองใหม่', 'error');
       dom.spinBtn.disabled = false;
       return;
     }
@@ -587,27 +595,32 @@
       state.isSpinning = false;
       dom.canvas.classList.remove('spinning');
 
-      const newRemaining = await decrementPrizeRpc(prize.id);
+      try {
+        const newRemaining = await decrementPrizeRpc(prize.id);
 
-      if (newRemaining === null) {
-        // ของหมดพอดีตอนกำลังหมุน — บังคับหมุนใหม่ ห้ามสุ่มของอื่นแทน (วงล้อโชว์ผลไปแล้ว)
-        showToast('ของชิ้นนี้เพิ่งหมดพอดี กรุณาหมุนใหม่', 'error');
-        state.prizesRemaining[prize.id] = 0;
-        drawWheel(state.currentAngle);
+        if (newRemaining === null) {
+          // ของหมดพอดีตอนกำลังหมุน — บังคับหมุนใหม่ ห้ามสุ่มของอื่นแทน (วงล้อโชว์ผลไปแล้ว)
+          showToast('ของชิ้นนี้เพิ่งหมดพอดี กรุณาหมุนใหม่', 'error');
+          state.prizesRemaining[prize.id] = 0;
+          drawWheel(state.currentAngle);
+          return;
+        }
+
+        state.prizesRemaining[prize.id] = newRemaining;
+
+        insertRegistration({
+          ...state.userData,
+          prize: prize.label,
+          prizeId: prize.id,
+        }).catch(console.error);
+
+        showResult(prize);
+      } catch (err) {
+        console.error(err);
+        showToast('เกิดข้อผิดพลาด กรุณาลองใหม่', 'error');
+      } finally {
         dom.spinBtn.disabled = false;
-        return;
       }
-
-      state.prizesRemaining[prize.id] = newRemaining;
-
-      insertRegistration({
-        ...state.userData,
-        prize: prize.label,
-        prizeId: prize.id,
-      }).catch(console.error);
-
-      showResult(prize);
-      dom.spinBtn.disabled = false;
     });
   }
 
