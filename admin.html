@@ -1444,8 +1444,10 @@ function handlePrizeImageSelect(i, inputEl) {
       canvas.getContext('2d').drawImage(img, 0, 0, width, height);
       canvas.toBlob(blob => uploadPrizeImage(i, blob), 'image/webp', 0.82);
     };
+    img.onerror = () => toast('ไฟล์รูปไม่ถูกต้อง', 'err');
     img.src = reader.result;
   };
+  reader.onerror = () => toast('อ่านไฟล์ไม่สำเร็จ', 'err');
   reader.readAsDataURL(file);
 }
 
