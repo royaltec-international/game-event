@@ -334,6 +334,13 @@
       .topbar-left .form-group { min-width: 0; width: 100%; }
       .topbar-left > button { width: auto; align-self: flex-start; }
       .topbar-actions { flex-wrap: wrap; margin-top: 8px; }
+      .field-grid-4 { grid-template-columns: 1fr 1fr; }
+    }
+
+    @media (max-width: 480px) {
+      .content { padding: 14px; }
+      .field-grid-4 { grid-template-columns: 1fr; }
+      .prize-grid { grid-template-columns: 1fr; }
     }
 
     /* ─── Form Field Editor Cards ─── */
