@@ -64,3 +64,32 @@ create policy "auth full prizes" on prizes for all    to authenticated using (tr
 
 create policy "anon insert registrations" on registrations for insert to anon with check (true);
 create policy "auth full registrations"   on registrations for all    to authenticated using (true) with check (true);
+
+-- ============================================================
+--  Storage: prize images
+--  Run once. Public bucket so the unauthenticated game page can
+--  display prize photos; write access restricted to admins.
+-- ============================================================
+insert into storage.buckets (id, name, public)
+values ('prize-images', 'prize-images', true)
+on conflict (id) do nothing;
+
+create policy "public read prize images"
+  on storage.objects for select
+  to anon
+  using (bucket_id = 'prize-images');
+
+create policy "auth write prize images"
+  on storage.objects for insert
+  to authenticated
+  with check (bucket_id = 'prize-images');
+
+create policy "auth update prize images"
+  on storage.objects for update
+  to authenticated
+  using (bucket_id = 'prize-images');
+
+create policy "auth delete prize images"
+  on storage.objects for delete
+  to authenticated
+  using (bucket_id = 'prize-images');
