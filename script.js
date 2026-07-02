@@ -18,6 +18,9 @@
     wonPrize: null,
   };
 
+  // prizeId -> loaded HTMLImageElement, populated by preloadPrizeImages()
+  const prizeImages = {};
+
   // ----------------------------------------------------------
   //  DOM refs
   // ----------------------------------------------------------
@@ -100,6 +103,24 @@
     } catch (e) {
       console.log('Using local prize quantities (server unavailable)');
     }
+
+    await preloadPrizeImages();
+  }
+
+  // โหลดรูปของรางวัล (ถ้ามี) เข้า cache ก่อนวาดวงล้อครั้งแรก
+  // จำกัดเวลารอไว้กันรูปโหลดช้า/พังบล็อกหน้าเว็บ — ถ้าไม่ทันก็ fallback เป็น emoji
+  function preloadPrizeImages() {
+    const loads = (WHEEL_CONFIG.prizes || [])
+      .filter(p => p.imagePath)
+      .map(p => new Promise(resolve => {
+        const url = supabase.storage.from('prize-images').getPublicUrl(p.imagePath).data.publicUrl;
+        const img = new Image();
+        img.onload = () => { prizeImages[p.id] = img; resolve(); };
+        img.onerror = () => resolve();
+        img.src = url;
+      }));
+    if (loads.length === 0) return Promise.resolve();
+    return Promise.race([Promise.all(loads), new Promise(resolve => setTimeout(resolve, 1500))]);
   }
 
   // ----------------------------------------------------------
@@ -497,10 +518,21 @@
       ctx.shadowColor = 'rgba(0,0,0,0.4)';
       ctx.shadowBlur = 4;
 
-      // Icon
-      const iconFont = `${cfg.fontSize + 2}px serif`;
-      ctx.font = iconFont;
-      ctx.fillText(seg.icon, textR + 4, 4);
+      // Icon (photo if the prize has one, emoji otherwise)
+      const prizeImg = prizeImages[seg.id];
+      if (prizeImg) {
+        const size = cfg.fontSize + 10;
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(textR + 4, 4, size / 2, 0, Math.PI * 2);
+        ctx.clip();
+        ctx.drawImage(prizeImg, textR + 4 - size / 2, 4 - size / 2, size, size);
+        ctx.restore();
+      } else {
+        const iconFont = `${cfg.fontSize + 2}px serif`;
+        ctx.font = iconFont;
+        ctx.fillText(seg.icon, textR + 4, 4);
+      }
 
       // Label
       ctx.font = `600 ${cfg.fontSize}px ${cfg.fontFamily}`;
@@ -670,7 +702,19 @@
   function showResult(prize) {
     dom.resultWonView.style.display = '';
     dom.resultSoldoutView.style.display = 'none';
-    dom.resultIcon.textContent = prize.icon;
+
+    const prizeImg = prizeImages[prize.id];
+    if (prizeImg) {
+      dom.resultIcon.textContent = '';
+      const imgEl = document.createElement('img');
+      imgEl.src = prizeImg.src;
+      imgEl.alt = prize.label;
+      imgEl.className = 'result-icon-image';
+      dom.resultIcon.appendChild(imgEl);
+    } else {
+      dom.resultIcon.textContent = prize.icon;
+    }
+
     dom.resultName.textContent = prize.label;
     showPage('result');
     launchConfetti();
