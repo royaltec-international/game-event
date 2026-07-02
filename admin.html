@@ -207,6 +207,11 @@
       display: flex; align-items: center; justify-content: center; font-size: 16px;
     }
 
+    .prize-image-thumb {
+      width: 48px; height: 48px; border-radius: 50%;
+      object-fit: cover; border: 1px solid var(--border);
+    }
+
     .prize-grid {
       display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 12px; align-items: end;
     }
@@ -685,11 +690,13 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="js/exportRows.js"></script>
 <script src="wheelConfig.js"></script>
+<script src="js/prizeImage.js"></script>
 <script>
 // ══════════════════════════════════════════════════════════
 //  State
 // ══════════════════════════════════════════════════════════
 const PALETTE = ['#f9c74f','#4cc9f0','#43aa8b','#f94144','#9b5de5','#ff6b35','#06d6a0','#e9c46a','#118ab2','#e76f51'];
+const PRIZE_IMAGE_BUCKET = 'prize-images';
 
 let state = {
   prizes: [],
@@ -1331,6 +1338,17 @@ function renderPrizes() {
       </div>
 
       <div style="display:flex;gap:12px;margin-top:12px;align-items:end;flex-wrap:wrap;">
+        <div class="form-group" style="flex:0 0 140px;">
+          <label>รูปของรางวัล (ถ้ามี ใช้แทน emoji)</label>
+          <div style="display:flex;align-items:center;gap:8px;">
+            ${p.imagePath
+              ? `<img src="${esc(supabase.storage.from(PRIZE_IMAGE_BUCKET).getPublicUrl(p.imagePath).data.publicUrl)}" class="prize-image-thumb" alt="" />`
+              : ''}
+            <input type="file" accept="image/*" style="max-width:110px;font-size:11px;"
+              onchange="handlePrizeImageSelect(${i}, this)" />
+          </div>
+          ${p.imagePath ? `<button class="btn btn-outline btn-sm" style="margin-top:4px;" onclick="removePrizeImage(${i})">ลบรูป</button>` : ''}
+        </div>
         <div class="form-group" style="flex:0 0 90px;">
           <label>Emoji Icon</label>
           <input type="text" value="${esc(p.icon)}" placeholder="ว่าง" maxlength="4"
@@ -1409,6 +1427,50 @@ function removePrize(i) {
   if (!confirm('ลบรางวัลนี้?')) return;
   state.prizes.splice(i, 1);
   renderPrizes();
+}
+
+function handlePrizeImageSelect(i, inputEl) {
+  const file = inputEl.files[0];
+  if (!file) return;
+
+  const img = new Image();
+  const reader = new FileReader();
+  reader.onload = () => {
+    img.onload = () => {
+      const { width, height } = fitDimensions(img.width, img.height, 160);
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+      canvas.toBlob(blob => uploadPrizeImage(i, blob), 'image/webp', 0.82);
+    };
+    img.src = reader.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+async function uploadPrizeImage(i, blob) {
+  if (!blob) { toast('แปลงรูปไม่สำเร็จ', 'err'); return; }
+  const path = prizeImagePath(state.currentEventId, state.prizes[i].id);
+  const { error } = await supabase.storage
+    .from(PRIZE_IMAGE_BUCKET)
+    .upload(path, blob, { upsert: true, contentType: 'image/webp' });
+
+  if (error) { toast('อัปโหลดรูปไม่สำเร็จ: ' + error.message, 'err'); return; }
+
+  setPrize(i, 'imagePath', path);
+  renderPrizes();
+  toast('อัปโหลดรูปสำเร็จ', 'ok');
+}
+
+async function removePrizeImage(i) {
+  const path = state.prizes[i].imagePath;
+  if (!path) return;
+  const { error } = await supabase.storage.from(PRIZE_IMAGE_BUCKET).remove([path]);
+  if (error) { toast('ลบรูปไม่สำเร็จ: ' + error.message, 'err'); return; }
+  setPrize(i, 'imagePath', null);
+  renderPrizes();
+  toast('ลบรูปแล้ว', 'ok');
 }
 
 function addPrize() {
