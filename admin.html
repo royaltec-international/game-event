@@ -221,6 +221,17 @@
       object-fit: cover; border: 1px solid var(--border);
     }
 
+    .prize-image-field-caption {
+      font-size: 11px; color: var(--text-muted); display: block; margin: -2px 0 8px;
+    }
+    .prize-image-filename {
+      font-size: 11px; color: var(--text-muted); display: block; margin-top: 5px;
+    }
+    .prize-image-input-hidden {
+      position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+      overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+    }
+
     .prize-grid {
       display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 12px; align-items: end;
     }
@@ -1404,16 +1415,20 @@ function renderPrizes() {
       </div>
 
       <div style="display:flex;gap:12px;margin-top:12px;align-items:end;flex-wrap:wrap;">
-        <div class="form-group" style="flex:0 0 140px;">
-          <label>รูปของรางวัล (ถ้ามี ใช้แทน emoji)</label>
-          <div style="display:flex;align-items:center;gap:8px;">
-            ${p.imagePath
-              ? `<img src="${esc(supabase.storage.from(PRIZE_IMAGE_BUCKET).getPublicUrl(p.imagePath).data.publicUrl)}" class="prize-image-thumb" alt="" />`
-              : ''}
-            <input type="file" accept="image/*" style="max-width:110px;font-size:11px;"
-              onchange="handlePrizeImageSelect(${i}, this)" />
-          </div>
-          ${p.imagePath ? `<button class="btn btn-outline btn-sm" style="margin-top:4px;" onclick="removePrizeImage(${i})">ลบรูป</button>` : ''}
+        <div class="form-group" style="flex:0 0 160px;">
+          <label>รูปของรางวัล</label>
+          <span class="prize-image-field-caption">ถ้ามี จะใช้แทน Emoji Icon ด้านล่าง</span>
+
+          ${p.imagePath
+            ? `<div style="margin-bottom:8px;"><img src="${esc(supabase.storage.from(PRIZE_IMAGE_BUCKET).getPublicUrl(p.imagePath).data.publicUrl)}" class="prize-image-thumb" alt="" /></div>`
+            : ''}
+
+          <label class="btn btn-outline btn-sm" for="prize-image-input-${i}">📷 เลือกรูป</label>
+          <input type="file" accept="image/*" id="prize-image-input-${i}" class="prize-image-input-hidden"
+            onchange="handlePrizeImageSelect(${i}, this); document.getElementById('prize-image-filename-${i}').textContent = this.files[0] ? this.files[0].name : 'ยังไม่ได้เลือกไฟล์';" />
+          <span class="prize-image-filename" id="prize-image-filename-${i}">ยังไม่ได้เลือกไฟล์</span>
+
+          ${p.imagePath ? `<div><button class="btn btn-outline btn-sm" style="margin-top:8px;" onclick="removePrizeImage(${i})">ลบรูป</button></div>` : ''}
         </div>
         <div class="form-group" style="flex:0 0 90px;">
           <label>Emoji Icon</label>
