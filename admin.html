@@ -849,6 +849,11 @@ async function deleteCurrentEvent() {
     return;
   }
 
+  const imagePaths = state.prizes.filter(p => p.imagePath).map(p => p.imagePath);
+  if (imagePaths.length > 0) {
+    await supabase.storage.from(PRIZE_IMAGE_BUCKET).remove(imagePaths);
+  }
+
   const { error } = await supabase.from('events').delete().eq('id', state.currentEventId);
   if (error) { toast('ลบ Event ไม่สำเร็จ: ' + error.message, 'err'); return; }
 
@@ -1423,8 +1428,12 @@ function stepQty(i, d) {
   renderPrizes();
 }
 
-function removePrize(i) {
+async function removePrize(i) {
   if (!confirm('ลบรางวัลนี้?')) return;
+  const imagePath = state.prizes[i].imagePath;
+  if (imagePath) {
+    await supabase.storage.from(PRIZE_IMAGE_BUCKET).remove([imagePath]);
+  }
   state.prizes.splice(i, 1);
   renderPrizes();
 }
