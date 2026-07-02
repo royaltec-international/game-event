@@ -922,7 +922,7 @@ function copyEventLink() {
   const select = document.getElementById('event-select');
   const slug = select.selectedOptions[0]?.dataset.slug;
   if (!slug) return;
-  const url = buildEventUrl(location.origin, slug);
+  const url = buildEventUrl(pageDirectoryUrl(location.origin, location.pathname), slug);
   navigator.clipboard.writeText(url);
   toast('คัดลอกลิงก์แล้ว: ' + url, 'ok');
 }
