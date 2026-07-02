@@ -31,12 +31,17 @@
     doneBtn:       document.getElementById('done-btn'),
     canvas:        document.getElementById('wheelCanvas'),
     pointer:       document.getElementById('wheel-pointer'),
+    resultWonView:     document.getElementById('result-won-view'),
+    resultSoldoutView: document.getElementById('result-soldout-view'),
+    resultSoldoutText: document.getElementById('result-soldout-text'),
     resultIcon:    document.getElementById('result-icon'),
     resultName:    document.getElementById('result-prize-name'),
     toast:         document.getElementById('toast'),
     confetti:      document.getElementById('confetti-canvas'),
     logoImg:       document.getElementById('logo-img'),
   };
+
+  const DEFAULT_SOLDOUT_MESSAGE = 'ขอบคุณที่ให้ความสนใจร่วมสนุกในงานนี้ ขออภัยของรางวัลหมดแล้ว ไว้โอกาสหน้านะคะ';
 
   // ----------------------------------------------------------
   //  Init
@@ -371,11 +376,25 @@
   // ----------------------------------------------------------
   //  Form Submit
   // ----------------------------------------------------------
-  function handleFormSubmit(e) {
+  async function handleFormSubmit(e) {
     e.preventDefault();
     if (!validateAll()) return;
 
     state.userData = getFormData();
+
+    // Sync ของรางวัลล่าสุดตอนนี้ กันกรณี admin แก้ของรางวัลระหว่างที่หน้านี้เปิดค้างไว้
+    dom.submitBtn.disabled = true;
+    await loadConfig();
+    dom.submitBtn.disabled = false;
+
+    if (getActiveSegments().length === 0) {
+      // ของรางวัลหมดตั้งแต่ก่อนเข้าหน้าวงล้อ — บันทึกข้อมูลลงทะเบียนไว้เลย ไม่ต้องรอหมุน
+      insertRegistration({ ...state.userData, prize: '', prizeId: '' }).catch(console.error);
+      showSoldOut();
+      return;
+    }
+
+    drawWheel(state.currentAngle);
     showPage('wheel');
   }
 
@@ -548,14 +567,10 @@
 
     let active;
     try {
-      // Sync ล่าสุดจาก Supabase ก่อนคำนวณวงล้อ ลดโอกาสชนกับคนอื่นให้เหลือน้อยที่สุด
-      const freshRemaining = await getRemainingPrizes();
-      if (freshRemaining) {
-        WHEEL_CONFIG.prizes.forEach(p => {
-          if (freshRemaining[p.id] !== undefined) state.prizesRemaining[p.id] = freshRemaining[p.id];
-        });
-        drawWheel(state.currentAngle);
-      }
+      // Sync config + จำนวนคงเหลือล่าสุดจาก Supabase ก่อนคำนวณวงล้อ
+      // กันกรณี admin แก้ของรางวัล (ชื่อ/เพิ่ม/ลบ) ระหว่างที่หน้านี้เปิดค้างไว้ ไม่ใช่แค่จำนวนคงเหลือ
+      await loadConfig();
+      drawWheel(state.currentAngle);
 
       active = getActiveSegments();
       if (active.length === 0) {
@@ -653,10 +668,19 @@
   //  Result
   // ----------------------------------------------------------
   function showResult(prize) {
+    dom.resultWonView.style.display = '';
+    dom.resultSoldoutView.style.display = 'none';
     dom.resultIcon.textContent = prize.icon;
     dom.resultName.textContent = prize.label;
     showPage('result');
     launchConfetti();
+  }
+
+  function showSoldOut() {
+    dom.resultWonView.style.display = 'none';
+    dom.resultSoldoutView.style.display = '';
+    dom.resultSoldoutText.textContent = WHEEL_CONFIG.soldOutMessage || DEFAULT_SOLDOUT_MESSAGE;
+    showPage('result');
   }
 
   // ----------------------------------------------------------

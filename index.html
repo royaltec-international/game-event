@@ -103,19 +103,29 @@
     <section id="result-section" class="page-section" aria-label="หน้าผลรางวัล">
       <div class="card" style="text-align:center;">
 
-        <h2 class="section-title">🎉 ยินดีด้วย!</h2>
-        <div class="accent-line"></div>
-        <p class="section-subtitle">คุณได้รับรางวัล</p>
+        <!-- Won Prize View -->
+        <div id="result-won-view">
+          <h2 class="section-title">🎉 ยินดีด้วย!</h2>
+          <div class="accent-line"></div>
+          <p class="section-subtitle">คุณได้รับรางวัล</p>
 
-        <!-- Prize Display -->
-        <div id="result-icon" class="result-icon">🎁</div>
-        <div id="result-prize-name" class="result-prize-name">—</div>
+          <!-- Prize Display -->
+          <div id="result-icon" class="result-icon">🎁</div>
+          <div id="result-prize-name" class="result-prize-name">—</div>
 
-        <!-- Instruction -->
-        <div class="result-instruction">
-          <strong>📱 แสดงหน้าจอนี้ให้ทีมงาน</strong>
-          เพื่อรับของรางวัลของคุณ<br/>
-          ทีมงานจะช่วยจัดเตรียมของรางวัลให้
+          <!-- Instruction -->
+          <div class="result-instruction">
+            <strong>📱 แสดงหน้าจอนี้ให้ทีมงาน</strong>
+            เพื่อรับของรางวัลของคุณ<br/>
+            ทีมงานจะช่วยจัดเตรียมของรางวัลให้
+          </div>
+        </div>
+
+        <!-- Sold Out View -->
+        <div id="result-soldout-view" style="display:none;">
+          <h2 class="section-title">🙏 ขอบคุณค่ะ</h2>
+          <div class="accent-line"></div>
+          <p id="result-soldout-text" class="section-subtitle">—</p>
         </div>
 
         <!-- Done Button -->

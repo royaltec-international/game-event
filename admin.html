@@ -155,7 +155,7 @@
     label { font-size: 12px; font-weight: 500; color: var(--text-muted); display: block; margin-bottom: 4px; }
 
     input[type="text"], input[type="number"], input[type="url"],
-    input[type="email"], select, textarea {
+    input[type="email"], input[type="password"], input[type="date"], select, textarea {
       font-family: var(--font); font-size: 13px; font-weight: 400;
       background: var(--surface2); color: var(--text);
       border: 1px solid var(--border); border-radius: var(--radius-sm);
@@ -429,6 +429,7 @@
         <button class="btn btn-outline btn-sm" onclick="openCreateEventPrompt()">+ Event ใหม่</button>
         <button class="btn btn-outline btn-sm" onclick="setActiveEvent(state.currentEventId)">ตั้งเป็น Event ปัจจุบัน</button>
         <button class="btn btn-outline btn-sm" onclick="copyEventLink()">คัดลอกลิงก์</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteCurrentEvent()">ลบ Event</button>
         <div>
           <div class="topbar-title" id="panel-title">ของรางวัล</div>
           <div class="topbar-sub" id="panel-sub">จัดการของรางวัล + ดูจำนวนคงเหลือแบบ real-time</div>
@@ -542,6 +543,24 @@
               <div class="form-group"><label>รอบขั้นต่ำ</label><input type="number" id="gen-minrot" min="1" max="20" value="5" /></div>
               <div class="form-group"><label>รอบสูงสุด</label><input type="number" id="gen-maxrot" min="1" max="30" value="10" /></div>
               <div class="form-group"><label>ระยะเวลา (ms)</label><input type="number" id="gen-dur" min="2000" max="15000" step="500" value="5000" /></div>
+            </div>
+          </div>
+        </div>
+        <div class="section-card">
+          <div class="section-header">
+            <div class="section-header-left">
+              <span class="section-icon">🙏</span>
+              <div>
+                <div class="section-label">ข้อความเมื่อของรางวัลหมด</div>
+                <div class="section-desc">แสดงแทนวงล้อ ถ้าของรางวัลหมดสต็อกก่อนผู้ลงทะเบียนกด "ถัดไป"</div>
+              </div>
+            </div>
+          </div>
+          <div class="section-body">
+            <div class="form-group">
+              <label>ข้อความ (เว้นว่างไว้ = ใช้ข้อความ default)</label>
+              <textarea id="gen-soldout" rows="3" style="resize:vertical;"
+                placeholder="ขอบคุณที่ให้ความสนใจร่วมสนุกในงานนี้ ขออภัยของรางวัลหมดแล้ว ไว้โอกาสหน้านะคะ"></textarea>
             </div>
           </div>
         </div>
@@ -662,6 +681,7 @@
 <script src="js/sessionGuard.js"></script>
 <script src="js/eventLink.js"></script>
 <script src="js/dateRangeFilter.js"></script>
+<script src="js/remainingPrizes.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="js/exportRows.js"></script>
 <script src="wheelConfig.js"></script>
@@ -757,7 +777,7 @@ async function loadEventList() {
 
   const select = document.getElementById('event-select');
   select.innerHTML = data.map(ev =>
-    `<option value="${ev.id}" data-slug="${ev.slug}">${ev.name}${ev.is_active ? ' (ปัจจุบัน)' : ''}</option>`
+    `<option value="${ev.id}" data-slug="${ev.slug}" data-name="${esc(ev.name)}">${ev.name}${ev.is_active ? ' (ปัจจุบัน)' : ''}</option>`
   ).join('');
 
   if (!state.currentEventId && data.length > 0) {
@@ -783,7 +803,12 @@ async function openCreateEventPrompt() {
 async function createEvent(name, slug) {
   const defaultConfig = {
     prizes: [], formFields: getDefaultFormFields(),
-    brandsCheckbox: { enabled: false, items: [] }, pdpa: { enabled: false },
+    brandsCheckbox: { enabled: false, items: [] },
+    pdpa: {
+      enabled: false,
+      text: 'ข้าพเจ้ายินยอมให้บริษัทฯ เก็บรวบรวม ใช้ และ/หรือเปิดเผยข้อมูลส่วนบุคคลของข้าพเจ้า เพื่อวัตถุประสงค์ในการติดต่อสื่อสาร นำเสนอผลิตภัณฑ์และบริการ ตามพระราชบัญญัติคุ้มครองข้อมูลส่วนบุคคล พ.ศ. 2562 (PDPA)',
+      required: true,
+    },
     wheel: { fontSize: 13, fontFamily: "'Kanit', sans-serif", centerCircleColor: '#162c3b', centerCircleBorderColor: '#ffd700', textRadiusRatio: 0.8, iconGap: 28 },
     spin: { minRotations: 5, maxRotations: 10, durationMs: 5000 },
   };
@@ -804,6 +829,38 @@ async function setActiveEvent(eventId) {
   if (error) { toast('ตั้ง Event ปัจจุบันไม่สำเร็จ: ' + error.message, 'err'); return; }
   await loadEventList();
   toast('ตั้งเป็น Event ปัจจุบันแล้ว', 'ok');
+}
+
+async function deleteCurrentEvent() {
+  if (!state.currentEventId) return;
+
+  const name = document.getElementById('event-select').selectedOptions[0]?.dataset.name || '';
+
+  if (!confirm(`ยืนยันลบ Event "${name}"?\n\nข้อมูลผู้ลงทะเบียนและของรางวัลทั้งหมดของ Event นี้จะถูกลบถาวร กู้คืนไม่ได้`)) return;
+  if (prompt(`พิมพ์ชื่อ Event "${name}" เพื่อยืนยันการลบ:`) !== name) {
+    toast('ยกเลิกการลบ (ข้อความยืนยันไม่ตรง)', 'err');
+    return;
+  }
+
+  const { error } = await supabase.from('events').delete().eq('id', state.currentEventId);
+  if (error) { toast('ลบ Event ไม่สำเร็จ: ' + error.message, 'err'); return; }
+
+  if (registrationsChannel) { supabase.removeChannel(registrationsChannel); registrationsChannel = null; }
+
+  state.currentEventId = null;
+  state.registrations = [];
+  await loadEventList();
+
+  if (state.currentEventId) {
+    await selectEvent(state.currentEventId);
+  } else {
+    state.prizes = [];
+    state.remaining = {};
+    renderPrizes();
+    renderRegistrationsTable([]);
+  }
+
+  toast('ลบ Event สำเร็จ', 'ok');
 }
 
 async function syncPrizesTable(eventId, prizes) {
@@ -954,7 +1011,7 @@ function exportRegistrationsToExcel() {
     return;
   }
 
-  const eventName = document.getElementById('event-select').selectedOptions[0]?.textContent || '';
+  const eventName = document.getElementById('event-select').selectedOptions[0]?.dataset.name || '';
   const rows = buildExportRows(regFilteredRows, eventName);
 
   const worksheet = XLSX.utils.json_to_sheet(rows);
@@ -1014,7 +1071,7 @@ function setupNav() {
     });
   });
 
-  ['gen-event','gen-logo','gen-fb','gen-minrot','gen-maxrot','gen-dur'].forEach(id => {
+  ['gen-event','gen-logo','gen-fb','gen-soldout','gen-minrot','gen-maxrot','gen-dur'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener('input', syncGeneral);
   });
@@ -1041,6 +1098,7 @@ async function loadFromServer() {
       state.general = {
         logoUrl: config.logoUrl || WHEEL_CONFIG.logoUrl || '',
         fbUrl:   config.lineAddFriendUrl || WHEEL_CONFIG.lineAddFriendUrl || '',
+        soldOutMessage: config.soldOutMessage || '',
         minRot:  config.spin?.minRotations || 5,
         maxRot:  config.spin?.maxRotations || 10,
         duration: config.spin?.durationMs || 5000
@@ -1055,6 +1113,7 @@ async function loadFromServer() {
       state.general = {
         logoUrl:  WHEEL_CONFIG.logoUrl || '',
         fbUrl:    WHEEL_CONFIG.lineAddFriendUrl || '',
+        soldOutMessage: WHEEL_CONFIG.soldOutMessage || '',
         minRot:   WHEEL_CONFIG.spin?.minRotations || 5,
         maxRot:   WHEEL_CONFIG.spin?.maxRotations || 10,
         duration: WHEEL_CONFIG.spin?.durationMs || 5000
@@ -1125,6 +1184,7 @@ async function saveToServer() {
       pdpa:           state.pdpa,
       logoUrl:         state.general.logoUrl,
       lineAddFriendUrl: state.general.fbUrl,
+      soldOutMessage:  state.general.soldOutMessage,
       wheel: {
         fontSize: 13,
         fontFamily: "'Kanit', sans-serif",
@@ -1230,7 +1290,7 @@ function renderPrizes() {
           <div class="prize-badge" style="background:${p.color}22;border:1px solid ${p.color}55;">
             <span id="badge-icon-${i}">${p.icon}</span>
           </div>
-          <span>${esc(p.label) || 'รางวัล #' + (i+1)}</span>
+          <span class="prize-label-text">${esc(p.label) || 'รางวัล #' + (i+1)}</span>
           <span class="chip">${prob}% โอกาส</span>
           <span class="stock-badge ${stockClass}">
             📦 คงเหลือ: ${remaining}/${p.quantity} ${stockText}
@@ -1273,7 +1333,7 @@ function renderPrizes() {
       <div style="display:flex;gap:12px;margin-top:12px;align-items:end;flex-wrap:wrap;">
         <div class="form-group" style="flex:0 0 90px;">
           <label>Emoji Icon</label>
-          <input type="text" value="${esc(p.icon)}" placeholder="🎁" maxlength="4"
+          <input type="text" value="${esc(p.icon)}" placeholder="ว่าง" maxlength="4"
             oninput="setPrize(${i},'icon',this.value);document.getElementById('badge-icon-${i}').textContent=this.value"
             style="font-size:20px;text-align:center;" />
         </div>
@@ -1286,7 +1346,7 @@ function renderPrizes() {
       <div class="prob-bar-wrap">
         <div class="prob-bar-label">
           <span>📊 สถิติการใช้งาน</span>
-          <span>ใช้ไป ${used} ชิ้น | คงเหลือ ${remaining} ชิ้น</span>
+          <span class="prob-bar-usage">ใช้ไป ${used} ชิ้น | คงเหลือ ${remaining} ชิ้น</span>
         </div>
         <div class="prob-bar-track">
           <div class="prob-bar-fill" style="width:${totalInitial > 0 ? (used/totalInitial)*100 : 0}%;background:${remaining === 0 ? 'var(--danger)' : p.color};"></div>
@@ -1297,9 +1357,42 @@ function renderPrizes() {
   });
 }
 
+// อัปเดตแค่ตัวเลข/ป้ายที่คำนวณจาก state โดยไม่แตะ input ที่กำลังพิมพ์อยู่ (renderPrizes() ทำ innerHTML ใหม่ทั้งลิสต์ ทำให้ focus หลุดทุก keystroke)
+function updatePrizeCardStats() {
+  const totalInitial = state.prizes.reduce((s, p) => s + +p.quantity, 0);
+  document.getElementById('total-qty').textContent = totalInitial;
+  document.getElementById('total-remaining').textContent = Object.values(state.remaining).reduce((s, v) => s + v, 0);
+
+  document.querySelectorAll('#prizes-list .prize-card').forEach((card, i) => {
+    const p = state.prizes[i];
+    const remaining = state.remaining[p.id] ?? p.quantity;
+    const used = p.quantity - remaining;
+    const prob = totalInitial > 0 ? ((p.quantity / totalInitial) * 100).toFixed(1) : 0;
+
+    let stockClass = 'high', stockText = 'มีเหลือเยอะ';
+    if (remaining === 0) {
+      stockClass = 'out'; stockText = 'หมดแล้ว';
+    } else if (remaining <= p.quantity * 0.2) {
+      stockClass = 'low'; stockText = 'ใกล้หมด';
+    } else if (remaining <= p.quantity * 0.5) {
+      stockClass = 'medium'; stockText = 'ปานกลาง';
+    }
+
+    card.querySelector('.prize-label-text').textContent = p.label || 'รางวัล #' + (i + 1);
+    card.querySelector('.chip').textContent = `${prob}% โอกาส`;
+    const badge = card.querySelector('.stock-badge');
+    badge.className = `stock-badge ${stockClass}`;
+    badge.textContent = `📦 คงเหลือ: ${remaining}/${p.quantity} ${stockText}`;
+    card.querySelector('.prob-bar-usage').textContent = `ใช้ไป ${used} ชิ้น | คงเหลือ ${remaining} ชิ้น`;
+    const fill = card.querySelector('.prob-bar-fill');
+    fill.style.width = `${totalInitial > 0 ? (used / totalInitial) * 100 : 0}%`;
+    fill.style.background = remaining === 0 ? 'var(--danger)' : p.color;
+  });
+}
+
 function setPrize(i, key, val) {
   state.prizes[i][key] = val;
-  if (key === 'quantity' || key === 'label') renderPrizes();
+  if (key === 'quantity' || key === 'label') updatePrizeCardStats();
 }
 
 function setPrizeColor(i, color) {
@@ -1343,6 +1436,7 @@ function loadGeneral() {
   document.getElementById('gen-event').value = state.eventName || '';
   document.getElementById('gen-logo').value = g.logoUrl || '';
   document.getElementById('gen-fb').value = g.fbUrl || '';
+  document.getElementById('gen-soldout').value = g.soldOutMessage || '';
   document.getElementById('gen-minrot').value = g.minRot || 5;
   document.getElementById('gen-maxrot').value = g.maxRot || 10;
   document.getElementById('gen-dur').value = g.duration || 5000;
@@ -1353,6 +1447,7 @@ function syncGeneral() {
   state.general = {
     logoUrl: document.getElementById('gen-logo').value,
     fbUrl: document.getElementById('gen-fb').value,
+    soldOutMessage: document.getElementById('gen-soldout').value,
     minRot: +document.getElementById('gen-minrot').value,
     maxRot: +document.getElementById('gen-maxrot').value,
     duration: +document.getElementById('gen-dur').value,
