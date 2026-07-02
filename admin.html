@@ -74,6 +74,15 @@
 
     .sidebar-footer { padding: 14px 12px; border-top: 1px solid var(--border); }
 
+    /* ─── Mobile hamburger bar + overlay (hidden on desktop) ─── */
+    .mobile-topbar { display: none; }
+    .hamburger-btn {
+      background: none; border: none; color: var(--text); font-size: 20px;
+      cursor: pointer; padding: 4px 8px; line-height: 1;
+    }
+    .mobile-topbar-title { font-size: 15px; font-weight: 700; color: var(--accent); }
+    .sidebar-overlay { display: none; }
+
     /* ─── Main ─── */
     .main { margin-left: 220px; flex: 1; display: flex; flex-direction: column; }
 
@@ -304,10 +313,21 @@
     @keyframes spin { to { transform: rotate(360deg); } }
 
     @media (max-width: 700px) {
-      .sidebar { width: 56px; }
-      .sidebar-logo h1, .sidebar-logo span, .nav-item span { display: none; }
-      .nav-item { justify-content: center; padding: 10px; }
-      .main { margin-left: 56px; }
+      .sidebar {
+        width: 240px;
+        transform: translateX(-100%);
+        transition: transform 0.25s ease;
+      }
+      .sidebar.open { transform: translateX(0); box-shadow: 8px 0 24px rgba(0,0,0,0.5); }
+      .main { margin-left: 0; }
+      .mobile-topbar {
+        display: flex; align-items: center; gap: 12px;
+        padding: 12px 16px; background: var(--surface); border-bottom: 1px solid var(--border);
+      }
+      .sidebar-overlay.visible {
+        display: block; position: fixed; inset: 0;
+        background: rgba(0,0,0,0.5); z-index: 90;
+      }
       .prize-grid { grid-template-columns: 1fr 1fr; }
     }
 
@@ -422,8 +442,14 @@
     </div>
   </nav>
 
+  <div class="sidebar-overlay" onclick="closeSidebar()"></div>
+
   <!-- ═══ MAIN ═══ -->
   <div class="main">
+    <div class="mobile-topbar">
+      <button class="hamburger-btn" onclick="toggleSidebar()" aria-label="เปิดเมนู">☰</button>
+      <span class="mobile-topbar-title">⚙️ Config</span>
+    </div>
 
     <div class="topbar">
       <div class="topbar-left">
@@ -1060,6 +1086,28 @@ async function init() {
   startAutoRefresh();
 }
 
+function toggleSidebar() {
+  document.querySelector('.sidebar').classList.toggle('open');
+  document.querySelector('.sidebar-overlay').classList.toggle('visible');
+}
+
+function closeSidebar() {
+  document.querySelector('.sidebar').classList.remove('open');
+  document.querySelector('.sidebar-overlay').classList.remove('visible');
+}
+
+(function setupSidebarSwipeClose() {
+  const sidebar = document.querySelector('.sidebar');
+  let touchStartX = null;
+  sidebar.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; }, { passive: true });
+  sidebar.addEventListener('touchend', e => {
+    if (touchStartX === null) return;
+    const deltaX = e.changedTouches[0].clientX - touchStartX;
+    if (deltaX < -70) closeSidebar();
+    touchStartX = null;
+  }, { passive: true });
+})();
+
 function setupNav() {
   document.querySelectorAll('.nav-item').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -1068,7 +1116,7 @@ function setupNav() {
       btn.classList.add('active');
       const pid = btn.dataset.panel;
       document.getElementById('panel-' + pid).classList.add('active');
-      
+
       const titles = {
         prizes:  { title: '🎁 ของรางวัล',      sub: 'จัดการของรางวัล + ดูจำนวนคงเหลือแบบ real-time' },
         general: { title: '🔧 ตั้งค่าทั่วไป',   sub: 'URLs, Logo และ Animation' },
@@ -1080,6 +1128,7 @@ function setupNav() {
       if (pid === 'registrations') loadRegistrations();
       document.getElementById('panel-title').textContent = titles[pid]?.title || '';
       document.getElementById('panel-sub').textContent = titles[pid]?.sub || '';
+      closeSidebar();
     });
   });
 
