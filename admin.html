@@ -82,6 +82,8 @@
     }
     .mobile-topbar-title { font-size: 15px; font-weight: 700; color: var(--accent); }
     .sidebar-overlay { display: none; }
+    .topbar-toggle-btn { display: none; }
+    .topbar-event-actions { display: contents; }
 
     /* ─── Main ─── */
     .main { margin-left: 220px; flex: 1; display: flex; flex-direction: column; }
@@ -231,6 +233,10 @@
       position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
       overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
     }
+    .prize-image-input-hidden:focus + label {
+      border-color: var(--accent); color: var(--accent);
+      outline: 2px solid var(--accent); outline-offset: 2px;
+    }
 
     .prize-grid {
       display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 12px; align-items: end;
@@ -343,9 +349,15 @@
       .topbar { flex-direction: column; align-items: stretch; padding: 12px 16px; }
       .topbar-left { flex-direction: column; align-items: stretch; gap: 8px; }
       .topbar-left .form-group { min-width: 0; width: 100%; }
-      .topbar-left > button { width: auto; align-self: flex-start; }
+      .topbar-left button { width: auto; align-self: flex-start; }
       .topbar-actions { flex-wrap: wrap; margin-top: 8px; }
       .field-grid-4 { grid-template-columns: 1fr 1fr; }
+      .topbar-toggle-btn { display: inline-flex; }
+      .topbar-event-actions {
+        display: none; flex-direction: column; align-items: flex-start;
+        gap: 8px; width: 100%; margin-top: 8px;
+      }
+      .topbar-event-actions.expanded { display: flex; }
     }
 
     @media (max-width: 480px) {
@@ -480,10 +492,13 @@
           <label style="font-size:11px;">Event</label>
           <select id="event-select" style="width:100%;"></select>
         </div>
-        <button class="btn btn-outline btn-sm" onclick="openCreateEventPrompt()">+ Event ใหม่</button>
-        <button class="btn btn-outline btn-sm" onclick="setActiveEvent(state.currentEventId)">ตั้งเป็น Event ปัจจุบัน</button>
-        <button class="btn btn-outline btn-sm" onclick="copyEventLink()">คัดลอกลิงก์</button>
-        <button class="btn btn-danger btn-sm" onclick="deleteCurrentEvent()">ลบ Event</button>
+        <button class="btn btn-outline btn-sm topbar-toggle-btn" id="topbar-toggle-btn" onclick="toggleTopbarActions()">▾ ตัวเลือก Event</button>
+        <div class="topbar-event-actions" id="topbar-event-actions">
+          <button class="btn btn-outline btn-sm" onclick="openCreateEventPrompt()">+ Event ใหม่</button>
+          <button class="btn btn-outline btn-sm" onclick="setActiveEvent(state.currentEventId)">ตั้งเป็น Event ปัจจุบัน</button>
+          <button class="btn btn-outline btn-sm" onclick="copyEventLink()">คัดลอกลิงก์</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteCurrentEvent()">ลบ Event</button>
+        </div>
         <div>
           <div class="topbar-title" id="panel-title">ของรางวัล</div>
           <div class="topbar-sub" id="panel-sub">จัดการของรางวัล + ดูจำนวนคงเหลือแบบ real-time</div>
@@ -1119,6 +1134,13 @@ function closeSidebar() {
   document.querySelector('.sidebar-overlay').classList.remove('visible');
 }
 
+function toggleTopbarActions() {
+  const el = document.getElementById('topbar-event-actions');
+  const btn = document.getElementById('topbar-toggle-btn');
+  const expanded = el.classList.toggle('expanded');
+  btn.textContent = expanded ? '▴ ซ่อนตัวเลือก Event' : '▾ ตัวเลือก Event';
+}
+
 (function setupSidebarSwipeClose() {
   const sidebar = document.querySelector('.sidebar');
   let touchStartX = null;
@@ -1423,9 +1445,9 @@ function renderPrizes() {
             ? `<div style="margin-bottom:8px;"><img src="${esc(supabase.storage.from(PRIZE_IMAGE_BUCKET).getPublicUrl(p.imagePath).data.publicUrl)}" class="prize-image-thumb" alt="" /></div>`
             : ''}
 
-          <label class="btn btn-outline btn-sm" for="prize-image-input-${i}">📷 เลือกรูป</label>
           <input type="file" accept="image/*" id="prize-image-input-${i}" class="prize-image-input-hidden"
             onchange="handlePrizeImageSelect(${i}, this); document.getElementById('prize-image-filename-${i}').textContent = this.files[0] ? this.files[0].name : 'ยังไม่ได้เลือกไฟล์';" />
+          <label class="btn btn-outline btn-sm" for="prize-image-input-${i}">📷 เลือกรูป</label>
           <span class="prize-image-filename" id="prize-image-filename-${i}">ยังไม่ได้เลือกไฟล์</span>
 
           ${p.imagePath ? `<div><button class="btn btn-outline btn-sm" style="margin-top:8px;" onclick="removePrizeImage(${i})">ลบรูป</button></div>` : ''}
