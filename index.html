@@ -44,7 +44,16 @@
     <!-- ======================================================
          PAGE 1: ลงทะเบียน
          ====================================================== -->
-    <section id="form-section" class="page-section active" aria-label="หน้าลงทะเบียน">
+    <!-- Loading: shown until init() decides the view (script.js swaps it for the form or the not-found card) -->
+    <section id="loading-section" class="page-section active" aria-label="กำลังโหลด" role="status" aria-live="polite">
+      <div class="card card-center loading-card">
+        <span class="loading-spinner" aria-hidden="true"></span>
+        <p class="loading-text">กำลังโหลด…</p>
+        <div class="loading-skel" aria-hidden="true"><span></span><span></span></div>
+      </div>
+    </section>
+
+    <section id="form-section" class="page-section" aria-label="หน้าลงทะเบียน">
       <div class="card">
         <h1 class="section-title">ลงทะเบียนรับสิทธิ์</h1>
         <p class="section-subtitle">กรอกข้อมูลให้ครบถ้วน เพื่อร่วมลุ้นรับของรางวัล</p>

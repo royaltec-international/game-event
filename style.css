@@ -21,11 +21,11 @@
   --field: #fbfcfd;                         /* input fill */
   --text: #13212b;
   --text-2: #4a5a67;
-  --text-muted: #7b8a96;
+  --text-muted: #5f6e7a;                    /* 5.0:1 on --surface (AA) */
   --border: #d8e0e7;
   --border-strong: #b9c6d1;
 
-  --success: #2f8f6f;
+  --success: #267a5c;                       /* 5.0:1 on --surface (AA) */
   --error: #c62f3a;
   --error-tint: #fdecee;
 
@@ -87,6 +87,10 @@ body::before {
   object-fit: contain;
 }
 
+/* hide the empty-src broken-image icon until init() has set the logo (box stays, so no layout jump) */
+body:not([data-step]) .logo-img { visibility: hidden; }
+body:not([data-step]) .logo-wrapper { min-height: 32px; }
+
 .logo-placeholder {
   font-size: 14px;
   font-weight: 500;
@@ -105,6 +109,8 @@ body::before {
 }
 
 .event-name:empty { display: none; }
+/* while loading, keep the event-name row's space so the header doesn't grow when the name arrives */
+body:not([data-step]) .event-name:empty { display: block; min-height: 21px; }
 
 /* ---------- Steps ---------- */
 .steps {
@@ -201,6 +207,29 @@ body[data-step="result"] .steps li[data-step="wheel"] .step-dot {
   from { opacity: 0; transform: translateY(12px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+
+/* ---------- Loading (until init() picks the view) ---------- */
+.loading-card { padding-block: 40px; }
+.loading-spinner {
+  display: block;
+  width: 28px; height: 28px;
+  margin: 0 auto 14px;
+  border: 3px solid var(--border);
+  border-top-color: var(--brand);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+.loading-text { font-size: 16px; color: var(--text-2); }
+.loading-skel { margin-top: 22px; display: grid; gap: 10px; }
+.loading-skel span {
+  height: 14px;
+  border-radius: 7px;
+  background: var(--border);
+  animation: skelPulse 1.4s ease-in-out infinite;
+}
+.loading-skel span:nth-child(2) { width: 70%; margin: 0 auto; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes skelPulse { 0%, 100% { opacity: 0.45; } 50% { opacity: 0.9; } }
 
 /* ---------- Event not found (no/unknown ?event=) ---------- */
 body[data-view="not-found"] .steps { display: none; }
@@ -572,6 +601,7 @@ canvas#wheelCanvas {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .page-section.active, .result-icon { animation: none; }
+  .page-section.active, .result-icon, .loading-skel span { animation: none; }
+  .loading-spinner { animation-duration: 3s; }
   .btn, .toast, .step-dot { transition: none; }
 }

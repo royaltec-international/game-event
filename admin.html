@@ -34,7 +34,7 @@
       --accent-dim: var(--brand-tint);
       --danger: #c62f3a;
       --danger-tint: #fdecee;
-      --success: #2f8f6f;
+      --success: #267a5c;
       --info: var(--brand);
 
       --font: 'Kanit', system-ui, sans-serif;
@@ -406,7 +406,16 @@
       .topbar-left { flex-direction: column; align-items: stretch; gap: 8px; }
       .topbar-left .form-group { min-width: 0 !important; width: 100%; }
       .topbar-left button { width: auto; align-self: flex-start; }
-      .topbar-actions { flex-wrap: wrap; margin-top: 8px; }
+      .topbar-actions { flex-wrap: wrap; margin-top: 8px; gap: 8px; }
+      .sync-indicator { flex: 0 0 auto; max-width: 100%; }
+      .topbar-actions .btn { flex: 1 1 auto; }
+      /* touch targets: >=44px tall, >=8px apart */
+      .btn, .btn-sm { min-height: 44px; }
+      .btn-icon { min-width: 44px; }
+      select { min-height: 44px; }
+      .topbar-event-actions { gap: 8px; }
+      .qty-stepper, .field-card-actions { gap: 8px; }
+      .qty-stepper input { min-height: 44px; }
       .field-grid-4 { grid-template-columns: 1fr 1fr; }
       .topbar-toggle-btn { display: inline-flex; }
       .topbar-event-actions {
@@ -975,6 +984,20 @@ async function deleteCurrentEvent() {
   if (!state.currentEventId) return;
 
   const name = document.getElementById('event-select').selectedOptions[0]?.dataset.name || '';
+  const eventId = state.currentEventId;
+
+  // Offer an Excel backup first: deleting the event cascades to its registrations (no DB backups on free tier)
+  const { count, error: countError } = await supabase
+    .from('registrations').select('id', { count: 'exact', head: true }).eq('event_id', eventId);
+  if (countError || count === null) {
+    toast('ตรวจจำนวนผู้ลงทะเบียนไม่สำเร็จ — ยังไม่ลบ Event: ' + (countError?.message || 'ไม่ทราบสาเหตุ'), 'err');
+    return;
+  }
+  if (count > 0 && confirm(`Event นี้มีผู้ลงทะเบียน ${count} คน — ดาวน์โหลดไฟล์ Excel เก็บไว้ก่อนลบไหม?`)) {
+    const all = await fetchAllRegistrations(eventId);
+    if (!all) { toast('ดึงรายชื่อเพื่อ export ไม่สำเร็จ — ยังไม่ลบ Event', 'err'); return; }
+    exportRegistrationsToExcel(all);
+  }
 
   if (!confirm(`ยืนยันลบ Event "${name}"?\n\nข้อมูลผู้ลงทะเบียนและของรางวัลทั้งหมดของ Event นี้จะถูกลบถาวร กู้คืนไม่ได้`)) return;
   if (prompt(`พิมพ์ชื่อ Event "${name}" เพื่อยืนยันการลบ:`) !== name) {
@@ -987,7 +1010,7 @@ async function deleteCurrentEvent() {
     await supabase.storage.from(PRIZE_IMAGE_BUCKET).remove(imagePaths);
   }
 
-  const { error } = await supabase.from('events').delete().eq('id', state.currentEventId);
+  const { error } = await supabase.from('events').delete().eq('id', eventId);
   if (error) { toast('ลบ Event ไม่สำเร็จ: ' + error.message, 'err'); return; }
 
   if (registrationsChannel) { supabase.removeChannel(registrationsChannel); registrationsChannel = null; }
@@ -1203,14 +1226,28 @@ async function deleteSelectedRegistrations() {
   toast(`ลบสำเร็จ ${ids.length} รายการ`, 'ok');
 }
 
-function exportRegistrationsToExcel() {
-  if (regFilteredRows.length === 0) {
+// All registrations of one event, paged past PostgREST's 1000-row cap. null on error.
+async function fetchAllRegistrations(eventId) {
+  const rows = [];
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await supabase.from('registrations').select('*')
+      .eq('event_id', eventId).order('created_at', { ascending: false }).range(from, from + 999);
+    if (error) return null;
+    rows.push(...data);
+    if (data.length < 1000) return rows;
+  }
+}
+
+// rows defaults to the currently filtered table; deleteCurrentEvent() passes the event's full list
+function exportRegistrationsToExcel(rowsToExport = regFilteredRows) {
+  if (!Array.isArray(rowsToExport)) rowsToExport = regFilteredRows; // onclick passes an Event
+  if (rowsToExport.length === 0) {
     toast('ไม่มีข้อมูลให้ export (ตามตัวกรองปัจจุบัน)', 'err');
     return;
   }
 
   const eventName = document.getElementById('event-select').selectedOptions[0]?.dataset.name || '';
-  const rows = buildExportRows(regFilteredRows, eventName);
+  const rows = buildExportRows(rowsToExport, eventName);
 
   const worksheet = XLSX.utils.json_to_sheet(rows);
   const workbook = XLSX.utils.book_new();

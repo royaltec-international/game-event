@@ -60,6 +60,7 @@
 
     // ไม่มี ?event= / หา event ไม่เจอ / ต่อ server ไม่ได้ → แสดงการ์ดแจ้งแทนฟอร์ม/วงล้อ
     const view = decideView(resolveEventSlug(location.search), serverConfig, failed);
+    document.getElementById('loading-section').remove();
     if (view !== 'game') {
       showNotFound(view);
       return;
@@ -74,6 +75,7 @@
     setupLogo();
     document.getElementById('event-name').textContent = WHEEL_CONFIG.eventName || '';
     document.body.dataset.step = state.currentPage;
+    dom.formSection.classList.add('active');
 
     // วาดวงล้อครั้งแรก
     drawWheel(state.currentAngle);
