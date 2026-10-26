@@ -107,6 +107,7 @@
     .sidebar-footer { padding: 14px 12px; border-top: 1px solid rgba(255,255,255,0.14); }
     .sidebar .btn-outline { background: transparent; color: #fff; border-color: rgba(255,255,255,0.4); }
     .sidebar .btn-outline:hover:not(:disabled) { background: rgba(255,255,255,0.12); color: #fff; border-color: #fff; }
+    .guide-link { width: 100%; margin-bottom: 8px; text-decoration: none; }
 
     /* ─── Mobile hamburger bar + overlay (hidden on desktop) ─── */
     .mobile-topbar { display: none; }
@@ -309,6 +310,26 @@
     .icon-picker-btn svg { display: block; }
 
     #add-prize-btn.at-cap { opacity: 0.5; }
+
+    .stock-adjust-btn { margin-top: 8px; align-self: flex-start; }
+    .stock-adjust {
+      margin-top: 12px; padding: 14px; border-radius: var(--radius-sm);
+      background: var(--surface2); border: 1px solid var(--border);
+    }
+    .stock-adjust[hidden] { display: none; }
+    .stock-adjust-modes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .stock-mode {
+      display: flex; gap: 8px; align-items: flex-start; padding: 10px 12px; margin: 0; cursor: pointer;
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm);
+      font-size: 14px; font-weight: 500; color: var(--text);
+    }
+    .stock-mode:has(input:checked) { border-color: var(--brand); background: var(--brand-tint); }
+    .stock-mode input { margin-top: 4px; accent-color: var(--brand); }
+    .stock-mode small { display: block; font-size: 12px; font-weight: 400; color: var(--text-muted); }
+    .stock-adjust-row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+    .stock-adjust-row input { flex: 1 1 120px; width: auto; }
+    .stock-preview { margin-top: 8px; font-size: 13px; color: var(--text-2); }
+    .stock-preview.is-error { color: var(--danger); }
 
     .prize-image-thumb {
       width: 48px; height: 48px; border-radius: 50%;
@@ -580,6 +601,7 @@
       </button>
     </div>
     <div class="sidebar-footer">
+      <a class="btn btn-outline guide-link" href="guide.html" target="_blank" rel="noopener">📖 คู่มือการใช้งาน</a>
       <button class="btn btn-success" style="width:100%;" onclick="saveToServer()" id="save-btn">
         บันทึก
       </button>
@@ -878,6 +900,7 @@
 <script src="js/prizeImage.js"></script>
 <script src="js/prizeIcons.js"></script>
 <script src="js/wheelTheme.js"></script>
+<script src="js/stockAdjust.js"></script>
 <script>
 // ══════════════════════════════════════════════════════════
 //  State
@@ -1623,14 +1646,33 @@ function renderPrizes() {
             oninput="setPrize(${i},'label',this.value)" />
         </div>
         <div class="form-group">
-          <label>จำนวนทั้งหมด (โอกาสตามจำนวนคงเหลือ)</label>
+          <label>จำนวนรวมตั้งแต่เริ่มงาน</label>
           <div class="qty-stepper">
             <button class="btn btn-outline btn-sm btn-icon" onclick="stepQty(${i},-1)">−</button>
             <input type="number" value="${p.quantity}" min="${used}" max="9999"
               oninput="setPrize(${i},'quantity',+this.value)" />
             <button class="btn btn-outline btn-sm btn-icon" onclick="stepQty(${i},1)">+</button>
           </div>
+          <button type="button" class="btn btn-outline btn-sm stock-adjust-btn" aria-expanded="false"
+            aria-controls="stock-adjust-${i}" onclick="toggleStockAdjust(${i})">± ปรับสต็อก (เติม / หักของ)</button>
         </div>
+      </div>
+
+      <div class="stock-adjust" id="stock-adjust-${i}" hidden>
+        <div class="stock-adjust-modes" role="radiogroup" aria-label="ประเภทการปรับ">
+          <label class="stock-mode"><input type="radio" name="stock-mode-${i}" value="1" checked
+            onchange="previewStock(${i})" /> <span>เติมของ<small>เช่น ของสำหรับวันถัดไป</small></span></label>
+          <label class="stock-mode"><input type="radio" name="stock-mode-${i}" value="-1"
+            onchange="previewStock(${i})" /> <span>หักของ<small>แจกนอกเกม / ของเสีย</small></span></label>
+        </div>
+        <div class="stock-adjust-row">
+          <input type="number" id="stock-amount-${i}" min="1" max="9999" inputmode="numeric"
+            placeholder="จำนวนชิ้น" oninput="previewStock(${i})" />
+          <button type="button" class="btn btn-primary btn-sm" id="stock-apply-${i}" disabled
+            onclick="applyStock(${i})">ยืนยันและบันทึก</button>
+          <button type="button" class="btn btn-outline btn-sm" onclick="toggleStockAdjust(${i})">ยกเลิก</button>
+        </div>
+        <div class="stock-preview" id="stock-preview-${i}" aria-live="polite">คงเหลือตอนนี้ ${remaining} ชิ้น — ใส่จำนวนชิ้นที่จะเติมหรือหัก</div>
       </div>
 
       <div style="display:flex;gap:12px;margin-top:12px;align-items:end;flex-wrap:wrap;">
@@ -1752,6 +1794,44 @@ document.addEventListener('focusin', (e) => {
 function setPrize(i, key, val) {
   state.prizes[i][key] = val;
   if (key === 'quantity' || key === 'label') updatePrizeCardStats();
+}
+
+// Stock adjust panel: staff type only the change; adjustStock() turns it into the running total
+function toggleStockAdjust(i) {
+  const panel = document.getElementById('stock-adjust-' + i);
+  panel.hidden = !panel.hidden;
+  document.querySelector(`[aria-controls="stock-adjust-${i}"]`).setAttribute('aria-expanded', String(!panel.hidden));
+  if (!panel.hidden) document.getElementById('stock-amount-' + i).focus();
+}
+
+function stockDelta(i) {
+  const sign = +document.querySelector(`input[name="stock-mode-${i}"]:checked`).value;
+  const raw = document.getElementById('stock-amount-' + i).value.trim();
+  return raw === '' ? NaN : sign * Number(raw);
+}
+
+function previewStock(i) {
+  const p = state.prizes[i];
+  const used = state.used[p.id] || 0;
+  const amountEmpty = document.getElementById('stock-amount-' + i).value.trim() === '';
+  const r = adjustStock(p.quantity, used, stockDelta(i));
+  const out = document.getElementById('stock-preview-' + i);
+  document.getElementById('stock-apply-' + i).disabled = !r.ok;
+  out.classList.toggle('is-error', !r.ok && !amountEmpty);
+  if (amountEmpty) out.textContent = `คงเหลือตอนนี้ ${r.remainingBefore} ชิ้น — ใส่จำนวนชิ้นที่จะเติมหรือหัก`;
+  else if (!r.ok) out.textContent = r.error;
+  else out.textContent = `คงเหลือ ${r.remainingBefore} → ${r.remainingAfter} ชิ้น (จำนวนรวม ${p.quantity} → ${r.quantity})`;
+}
+
+async function applyStock(i) {
+  const p = state.prizes[i];
+  const r = adjustStock(p.quantity, state.used[p.id] || 0, stockDelta(i));
+  if (!r.ok) { previewStock(i); return; }
+  p.quantity = r.quantity;
+  renderPrizes();
+  // Save right away: a top-up that waits for the separate Save button is easy to forget mid-event.
+  // saveToServer re-checks against fresh give-out counts and refuses a total below them.
+  await saveToServer();
 }
 
 function stepQty(i, d) {
