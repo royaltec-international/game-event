@@ -1,6 +1,7 @@
 /* ============================================================
    style.css — game page
-   Theme: clean corporate, light surface + Royaltec navy band
+   Theme: clean corporate, RTI Design System background (soft off-white,
+   never pure white) + Royaltec navy band
    Mobile-first (players scan a QR code at the booth)
    ============================================================ */
 
@@ -14,8 +15,10 @@
   --gold: #c99700;
   --gold-tint: #fff7dc;
 
-  --bg: #f3f6f9;
-  --surface: #ffffff;
+  --bg: #eef3f5;                            /* base tone of the RTI background art */
+  --surface: #f8fafb;                       /* cards: off-white, opaque so the part over the navy band stays clean */
+  --surface-solid: #f8fafb;                 /* rings / small fills */
+  --field: #fbfcfd;                         /* input fill */
   --text: #13212b;
   --text-2: #4a5a67;
   --text-muted: #7b8a96;
@@ -49,6 +52,20 @@ body {
   min-height: 100dvh;
   line-height: 1.5;
   overflow-x: hidden;
+}
+
+/* RTI Design System background — on a fixed layer because
+   background-attachment: fixed is ignored by iOS Safari */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: var(--bg) url('assets/bg-portrait.jpg') center / cover no-repeat;
+}
+
+@media (min-aspect-ratio: 1/1) {
+  body::before { background-image: url('assets/bg-landscape.jpg'); }
 }
 
 /* ---------- Header band ---------- */
@@ -144,8 +161,8 @@ body[data-step="result"] .steps li[data-step="result"] {
 body[data-step="form"]   .steps li[data-step="form"]   .step-dot,
 body[data-step="wheel"]  .steps li[data-step="wheel"]  .step-dot,
 body[data-step="result"] .steps li[data-step="result"] .step-dot {
-  background: #fff;
-  border-color: #fff;
+  background: var(--surface-solid);
+  border-color: var(--surface-solid);
   color: var(--navy);
 }
 
@@ -188,7 +205,7 @@ body[data-step="result"] .steps li[data-step="wheel"] .step-dot {
 /* ---------- Card ---------- */
 .card {
   background: var(--surface);
-  border: 1px solid var(--border);
+  border: 1px solid rgba(216, 224, 231, 0.8);
   border-radius: var(--radius-card);
   padding: 28px 20px;
   box-shadow: var(--shadow-card);
@@ -245,7 +262,7 @@ body[data-step="result"] .steps li[data-step="wheel"] .step-dot {
   font-size: 16px;
   font-weight: 400;
   color: var(--text);
-  background: var(--surface);
+  background: var(--field);
   border: 1.5px solid var(--border-strong);
   border-radius: var(--radius-input);
   padding: 12px 14px;
@@ -296,7 +313,7 @@ body[data-step="result"] .steps li[data-step="wheel"] .step-dot {
 
 .brands-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);   /* brand names can be long ("Panduit ( Network Solutions )") */
   gap: 8px;
 }
 
@@ -306,7 +323,7 @@ body[data-step="result"] .steps li[data-step="wheel"] .step-dot {
   gap: 10px;
   min-height: 48px;
   padding: 10px 12px;
-  background: var(--surface);
+  background: var(--field);
   border: 1.5px solid var(--border);
   border-radius: var(--radius-input);
   cursor: pointer;
@@ -335,7 +352,7 @@ body[data-step="result"] .steps li[data-step="wheel"] .step-dot {
 .pdpa-section {
   margin-top: 20px;
   padding: 14px;
-  background: var(--bg);
+  background: rgba(238, 243, 245, 0.7);
   border: 1px solid var(--border);
   border-radius: var(--radius-input);
 }
@@ -398,7 +415,7 @@ body[data-step="result"] .steps li[data-step="wheel"] .step-dot {
 }
 
 .btn-secondary {
-  background: var(--surface);
+  background: var(--field);
   color: var(--brand);
   border: 1.5px solid var(--brand);
 }
@@ -429,7 +446,7 @@ canvas#wheelCanvas {
   height: auto;
   aspect-ratio: 1;
   border-radius: 50%;
-  box-shadow: 0 0 0 8px var(--surface), 0 0 0 10px var(--border), 0 16px 40px rgba(19, 33, 43, 0.18);
+  box-shadow: 0 0 0 8px var(--surface-solid), 0 0 0 10px var(--border), 0 16px 40px rgba(19, 33, 43, 0.18);
 }
 
 /* ---------- Result Section ---------- */
@@ -450,7 +467,7 @@ canvas#wheelCanvas {
   place-items: center;
   border-radius: 50%;
   background: var(--gold-tint);
-  box-shadow: 0 0 0 6px #fff, 0 0 0 8px rgba(201, 151, 0, 0.35);
+  box-shadow: 0 0 0 6px var(--surface-solid), 0 0 0 8px rgba(201, 151, 0, 0.35);
   animation: popIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 
@@ -545,7 +562,7 @@ canvas#wheelCanvas {
   .section-title { font-size: 26px; }
   .form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .form-group.full-width { grid-column: 1 / -1; }
-  .brands-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .brands-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (prefers-reduced-motion: reduce) {
