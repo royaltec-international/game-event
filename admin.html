@@ -135,7 +135,7 @@
 
     .sync-indicator {
       display: flex; align-items: center; gap: 6px;
-      font-size: 12px; color: var(--text-muted);
+      font-size: 12px; color: var(--text-muted); white-space: nowrap;
       padding: 6px 12px; border-radius: 999px;
       background: var(--field); border: 1px solid var(--border);
     }
@@ -534,7 +534,7 @@
         <span class="icon">📋</span><span>หน้าลงทะเบียน</span>
       </button>
       <button class="nav-item" data-panel="registrations">
-        <span class="icon">R</span><span>รายชื่อผู้ลงทะเบียน</span>
+        <span class="icon">👥</span><span>รายชื่อผู้ลงทะเบียน</span>
       </button>
     </div>
     <div class="sidebar-footer">
@@ -626,7 +626,7 @@
       <!-- ── PRIZES ── -->
       <div id="panel-prizes" class="panel active">
         <div class="alert alert-info">
-          ℹ️ <strong>Real-time Sync:</strong> จำนวนคงเหลืออัปเดตอัตโนมัติจาก Google Sheets — ขนาดช่องวงล้อเท่ากันทุกรางวัล
+          ℹ️ <strong>Real-time Sync:</strong> จำนวนคงเหลืออัปเดตอัตโนมัติจากฐานข้อมูล — ขนาดช่องวงล้อเท่ากันทุกรางวัล
         </div>
         <div class="total-strip">
           <div><div class="total-lbl">ของรางวัลทั้งหมด (เริ่มต้น)</div><div class="total-val" id="total-qty">0</div></div>
