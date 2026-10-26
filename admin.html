@@ -105,7 +105,7 @@
     .nav-item .icon { font-size: 16px; width: 20px; text-align: center; }
 
     .sidebar-footer { padding: 14px 12px; border-top: 1px solid rgba(255,255,255,0.14); }
-    .sidebar .btn-outline { color: #fff; border-color: rgba(255,255,255,0.4); }
+    .sidebar .btn-outline { background: transparent; color: #fff; border-color: rgba(255,255,255,0.4); }
     .sidebar .btn-outline:hover:not(:disabled) { background: rgba(255,255,255,0.12); color: #fff; border-color: #fff; }
 
     /* ─── Mobile hamburger bar + overlay (hidden on desktop) ─── */
@@ -339,7 +339,7 @@
     /* ─── Alert (opaque tints, readable over the background art) ─── */
     .alert {
       padding: 10px 14px; border-radius: var(--radius-sm); font-size: 14px;
-      margin-bottom: 16px; display: flex; align-items: flex-start; gap: 8px;
+      margin-bottom: 16px; display: block;
     }
     .alert-info { background: var(--brand-tint); border: 1px solid #c4d9e8; color: var(--brand-hover); }
     .alert-warn { background: var(--gold-tint); border: 1px solid #ecd48a; color: #7a5b00; }
@@ -667,7 +667,12 @@
           </div>
           <div class="section-body" style="display:flex;flex-direction:column;gap:14px;">
             <div class="form-group"><label>Logo URL</label><input type="url" id="gen-logo" placeholder="https://..." /></div>
-            <div class="form-group"><label>Facebook / LINE URL (ปุ่มหน้าผลรางวัล)</label><input type="url" id="gen-fb" placeholder="https://www.facebook.com/..." /></div>
+            <div class="field-group">
+              <div class="field-group-title">ปุ่มติดตามเรา (หน้าผลลัพธ์)</div>
+              <div class="field-group-hint">ปุ่มสุดท้ายที่ผู้เล่นกดหลังเห็นผลรางวัล — ข้อความบนปุ่มและลิงก์ที่เปิดเมื่อกด</div>
+              <div class="form-group"><label>ข้อความบนปุ่ม (เว้นว่างไว้ = "ติดตามเราบน Facebook")</label><input type="text" id="gen-follow-text" maxlength="40" placeholder="ติดตามเราบน Facebook" /></div>
+              <div class="form-group"><label>ลิงก์ของปุ่ม (Facebook / LINE URL)</label><input type="url" id="gen-fb" placeholder="https://www.facebook.com/..." /></div>
+            </div>
           </div>
         </div>
         <div class="section-card">
@@ -1273,6 +1278,7 @@ async function loadFromServer() {
       state.general = {
         logoUrl: config.logoUrl || WHEEL_CONFIG.logoUrl || '',
         fbUrl:   config.lineAddFriendUrl || WHEEL_CONFIG.lineAddFriendUrl || '',
+        followText: config.followButtonText || '',
         soldOutMessage: config.soldOutMessage || '',
         minRot:  config.spin?.minRotations || 5,
         maxRot:  config.spin?.maxRotations || 10,
@@ -1288,6 +1294,7 @@ async function loadFromServer() {
       state.general = {
         logoUrl:  WHEEL_CONFIG.logoUrl || '',
         fbUrl:    WHEEL_CONFIG.lineAddFriendUrl || '',
+        followText: WHEEL_CONFIG.followButtonText || '',
         soldOutMessage: WHEEL_CONFIG.soldOutMessage || '',
         minRot:   WHEEL_CONFIG.spin?.minRotations || 5,
         maxRot:   WHEEL_CONFIG.spin?.maxRotations || 10,
@@ -1317,6 +1324,7 @@ async function loadFromServer() {
     state.general = {
       logoUrl:  WHEEL_CONFIG.logoUrl || '',
       fbUrl:    WHEEL_CONFIG.lineAddFriendUrl || '',
+      followText: WHEEL_CONFIG.followButtonText || '',
       minRot:   WHEEL_CONFIG.spin?.minRotations || 5,
       maxRot:   WHEEL_CONFIG.spin?.maxRotations || 10,
       duration: WHEEL_CONFIG.spin?.durationMs || 5000
@@ -1349,6 +1357,7 @@ async function saveToServer() {
       pdpa:           state.pdpa,
       logoUrl:         state.general.logoUrl,
       lineAddFriendUrl: state.general.fbUrl,
+      followButtonText: state.general.followText,
       soldOutMessage:  state.general.soldOutMessage,
       wheel: {
         fontSize: 13,
@@ -1673,6 +1682,7 @@ function loadGeneral() {
   document.getElementById('gen-event').value = state.eventName || '';
   document.getElementById('gen-logo').value = g.logoUrl || '';
   document.getElementById('gen-fb').value = g.fbUrl || '';
+  document.getElementById('gen-follow-text').value = g.followText || '';
   document.getElementById('gen-soldout').value = g.soldOutMessage || '';
   document.getElementById('gen-minrot').value = g.minRot || 5;
   document.getElementById('gen-maxrot').value = g.maxRot || 10;
@@ -1684,6 +1694,7 @@ function syncGeneral() {
   state.general = {
     logoUrl: document.getElementById('gen-logo').value,
     fbUrl: document.getElementById('gen-fb').value,
+    followText: document.getElementById('gen-follow-text').value,
     soldOutMessage: document.getElementById('gen-soldout').value,
     minRot: +document.getElementById('gen-minrot').value,
     maxRot: +document.getElementById('gen-maxrot').value,

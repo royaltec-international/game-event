@@ -91,6 +91,9 @@
       console.log('Using local config (server unavailable)');
     }
 
+    // ข้อความปุ่มติดตามเรา (admin แก้ได้) — ว่าง = ข้อความเดิม
+    dom.doneBtn.textContent = followButtonLabel(WHEEL_CONFIG.followButtonText);
+
     // โหลดจำนวนคงเหลือจริงจาก server (แทนที่ค่า quantity เริ่มต้น)
     try {
       const remaining = await getRemainingPrizes();
