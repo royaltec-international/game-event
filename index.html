@@ -109,15 +109,21 @@
 
         <!-- Won Prize View -->
         <div id="result-won-view">
-          <p class="result-kicker">ยินดีด้วย! คุณได้รับรางวัล</p>
+          <p id="result-kicker" class="result-kicker">ยินดีด้วย! คุณได้รับรางวัล</p>
           <div id="result-icon" class="result-icon">🎁</div>
           <div id="result-prize-name" class="result-prize-name">—</div>
           <p id="result-meta" class="result-meta"></p>
 
           <!-- Instruction -->
-          <div class="result-instruction">
+          <div id="result-instruction" class="result-instruction">
             <strong>แสดงหน้าจอนี้ให้ทีมงาน</strong>
             เพื่อรับของรางวัลที่บูธ
+          </div>
+
+          <!-- Repeat visit: same phone/email already spun in this event -->
+          <div id="result-repeat" class="result-repeat" hidden>
+            <strong>เบอร์โทร/อีเมลนี้ร่วมสนุกไปแล้ว</strong>
+            นี่คือรางวัลจากการหมุนครั้งแรก — รับของรางวัลได้ 1 ครั้งต่อ 1 ท่าน
           </div>
         </div>
 

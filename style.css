@@ -545,6 +545,21 @@ canvas#wheelCanvas {
   line-height: 1.6;
 }
 
+.result-kicker.is-repeat { color: #6b4e00; }
+
+.result-repeat {
+  font-size: 15px;
+  color: #6b4e00;
+  background: var(--gold-tint);
+  border: 1px solid #ecd48a;
+  border-radius: var(--radius-input);
+  padding: 14px 16px;
+  margin-top: 20px;
+  line-height: 1.6;
+}
+.result-repeat[hidden] { display: none; }
+.result-repeat strong { display: block; color: #4d3800; }
+
 .result-instruction strong {
   display: block;
   color: var(--navy);

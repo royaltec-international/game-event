@@ -454,6 +454,7 @@
       dom.submitBtn.disabled = true;
       try {
         const result = await drawPrizeRpc(buildRegistrationPayload(state.userData));
+        if (result.alreadyPlayed) { showRepeat(result); return; }
         // admin อาจเพิ่มสต็อกพอดี — ถ้า server ให้รางวัลมาก็แสดงผลเลย
         const prize = result.prizeId && WHEEL_CONFIG.prizes.find(p => p.id === result.prizeId);
         if (prize) showResult(prize);
@@ -646,6 +647,13 @@
       return;
     }
 
+    if (result.alreadyPlayed) {
+      // เบอร์/อีเมลนี้หมุนไปแล้วใน event นี้ — ไม่หมุนวงล้อ แสดงผลครั้งแรก
+      dom.spinBtn.disabled = false;
+      showRepeat(result);
+      return;
+    }
+
     if (!result.prizeId) {
       // ของหมดก่อนถึงคิว — server บันทึกข้อมูลลงทะเบียนแล้ว (ไม่มีรางวัล)
       dom.spinBtn.disabled = false;
@@ -718,9 +726,15 @@
   // ----------------------------------------------------------
   //  Result
   // ----------------------------------------------------------
-  function showResult(prize) {
+  // repeat = เบอร์/อีเมลนี้เคยหมุนแล้ว: เปลี่ยนหัวข้อ + กล่องเตือนแทนคำแนะนำรับของ, ไม่มีเวลา/confetti
+  function showResult(prize, repeat = false) {
     dom.resultWonView.style.display = '';
     dom.resultSoldoutView.style.display = 'none';
+    const kicker = document.getElementById('result-kicker');
+    kicker.textContent = repeat ? 'คุณร่วมสนุกในงานนี้ไปแล้ว' : 'ยินดีด้วย! คุณได้รับรางวัล';
+    kicker.classList.toggle('is-repeat', repeat);
+    document.getElementById('result-instruction').hidden = repeat;
+    document.getElementById('result-repeat').hidden = !repeat;
 
     const prizeImg = prizeImages[prize.id];
     if (prizeImg) {
@@ -737,10 +751,22 @@
     dom.resultName.textContent = prize.label;
     // ชื่อ + เวลา ให้ทีมงานเช็คได้ว่าเป็นผลของคนนี้ ไม่ใช่ภาพหน้าจอเก่า
     const who = [state.userData?.firstName, state.userData?.lastName].filter(Boolean).join(' ');
-    const when = new Date().toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' });
-    document.getElementById('result-meta').textContent = who ? `${who} · ${when}` : when;
+    const when = repeat ? '' : new Date().toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' });
+    document.getElementById('result-meta').textContent = [who, when].filter(Boolean).join(' · ');
     showPage('result');
-    launchConfetti();
+    if (!repeat) launchConfetti();
+  }
+
+  // ผลของคนที่เคยหมุนแล้ว (server คืนรางวัลครั้งแรก หรือ null ถ้าครั้งแรกของหมด)
+  function showRepeat(result) {
+    const prize = result.prizeId &&
+      (WHEEL_CONFIG.prizes.find(p => p.id === result.prizeId) || { id: result.prizeId, label: result.prizeLabel, icon: '🎁' });
+    if (prize) {
+      showResult(prize, true);
+    } else {
+      showSoldOut();
+      dom.resultSoldoutText.textContent = 'เบอร์โทร/อีเมลนี้ร่วมสนุกในงานนี้ไปแล้ว ขอบคุณที่ให้ความสนใจค่ะ';
+    }
   }
 
   function showSoldOut() {
