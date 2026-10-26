@@ -2,13 +2,14 @@
 <html lang="th">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#162c3b" />
   <title>ลุ้นรางวัล — หมุนวงล้อ</title>
 
   <!-- Kanit Font -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700;900&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
 
   <!-- Styles -->
   <link rel="stylesheet" href="style.css" />
@@ -21,31 +22,31 @@
   <!-- Toast Notification -->
   <div id="toast" class="toast" role="alert" aria-live="polite"></div>
 
+  <!-- Brand header: logo (white artwork) sits on the navy band -->
+  <header class="site-header">
+    <div class="logo-wrapper">
+      <img id="logo-img" class="logo-img" src="" alt="Company Logo" />
+      <div id="logo-fallback" class="logo-placeholder" style="display:none;">Company Logo</div>
+    </div>
+    <p id="event-name" class="event-name"></p>
+
+    <!-- Steps — current one set by showPage() via data-step on <body> -->
+    <ol class="steps" aria-label="ขั้นตอน">
+      <li data-step="form"><span class="step-dot">1</span>ลงทะเบียน</li>
+      <li data-step="wheel"><span class="step-dot">2</span>หมุนวงล้อ</li>
+      <li data-step="result"><span class="step-dot">3</span>รับรางวัล</li>
+    </ol>
+  </header>
+
   <!-- App Root -->
-  <div id="app">
+  <main id="app">
 
     <!-- ======================================================
          PAGE 1: ลงทะเบียน
          ====================================================== -->
     <section id="form-section" class="page-section active" aria-label="หน้าลงทะเบียน">
       <div class="card">
-
-        <!-- Logo -->
-        <div class="logo-wrapper">
-          <img
-            id="logo-img"
-            class="logo-img"
-            src=""
-            alt="Company Logo"
-          />
-          <div id="logo-fallback" class="logo-placeholder" style="display:none;">
-            🏢 Company Logo
-          </div>
-        </div>
-
-        <!-- Heading -->
         <h1 class="section-title">ลงทะเบียนรับสิทธิ์</h1>
-        <div class="accent-line"></div>
         <p class="section-subtitle">กรอกข้อมูลให้ครบถ้วน เพื่อร่วมลุ้นรับของรางวัล</p>
 
         <!-- Form — Fields rendered dynamically by script.js based on WHEEL_CONFIG -->
@@ -61,10 +62,9 @@
           <div id="pdpa-container"></div>
 
           <button type="submit" id="submit-btn" class="btn btn-primary">
-            ถัดไป — หมุนวงล้อ 🎡
+            ถัดไป — หมุนวงล้อ
           </button>
         </form>
-
       </div>
     </section>
 
@@ -72,28 +72,23 @@
          PAGE 2: หมุนวงล้อ
          ====================================================== -->
     <section id="wheel-section" class="page-section" aria-label="หน้าหมุนวงล้อ">
-      <div class="card" style="max-width:640px;text-align:center;">
-
-        <h2 class="section-title">หมุนเพื่อลุ้นรับรางวัล!</h2>
-        <div class="accent-line"></div>
-        <p class="section-subtitle">กดปุ่มด้านล่างเพื่อหมุนวงล้อ — โชคดีนะครับ 🍀</p>
+      <div class="card card-center">
+        <h2 class="section-title">หมุนเพื่อลุ้นรับรางวัล</h2>
+        <p class="section-subtitle">กดปุ่มด้านล่างเพื่อหมุนวงล้อ</p>
 
         <!-- Wheel -->
         <div class="wheel-container">
           <!-- Pointer (SVG Arrow) -->
-          <div id="wheel-pointer" class="wheel-pointer">
-            <svg width="36" height="40" viewBox="0 0 36 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <polygon points="18,36 2,4 34,4" fill="#ffd700" stroke="#162c3b" stroke-width="2"/>
+          <div id="wheel-pointer" class="wheel-pointer" aria-hidden="true">
+            <svg width="34" height="40" viewBox="0 0 34 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M17 38 L3 6 Q2 2 6 2 H28 Q32 2 31 6 Z" fill="#162c3b" stroke="#ffffff" stroke-width="3" stroke-linejoin="round"/>
             </svg>
           </div>
           <!-- Canvas -->
-          <canvas id="wheelCanvas" width="380" height="380" aria-label="วงล้อรางวัล"></canvas>
+          <canvas id="wheelCanvas" width="760" height="760" aria-label="วงล้อรางวัล"></canvas>
         </div>
 
-        <button id="spin-btn" class="btn btn-primary" style="max-width:280px;margin:20px auto 0;">
-          🎯 หมุนวงล้อ!
-        </button>
-
+        <button id="spin-btn" class="btn btn-primary">หมุนวงล้อ</button>
       </div>
     </section>
 
@@ -101,42 +96,34 @@
          PAGE 3: ผลรางวัล
          ====================================================== -->
     <section id="result-section" class="page-section" aria-label="หน้าผลรางวัล">
-      <div class="card" style="text-align:center;">
+      <div class="card card-center">
 
         <!-- Won Prize View -->
         <div id="result-won-view">
-          <h2 class="section-title">🎉 ยินดีด้วย!</h2>
-          <div class="accent-line"></div>
-          <p class="section-subtitle">คุณได้รับรางวัล</p>
-
-          <!-- Prize Display -->
+          <p class="result-kicker">ยินดีด้วย! คุณได้รับรางวัล</p>
           <div id="result-icon" class="result-icon">🎁</div>
           <div id="result-prize-name" class="result-prize-name">—</div>
+          <p id="result-meta" class="result-meta"></p>
 
           <!-- Instruction -->
           <div class="result-instruction">
-            <strong>📱 แสดงหน้าจอนี้ให้ทีมงาน</strong>
-            เพื่อรับของรางวัลของคุณ<br/>
-            ทีมงานจะช่วยจัดเตรียมของรางวัลให้
+            <strong>แสดงหน้าจอนี้ให้ทีมงาน</strong>
+            เพื่อรับของรางวัลที่บูธ
           </div>
         </div>
 
         <!-- Sold Out View -->
         <div id="result-soldout-view" style="display:none;">
-          <h2 class="section-title">🙏 ขอบคุณค่ะ</h2>
-          <div class="accent-line"></div>
+          <h2 class="section-title">ขอบคุณค่ะ</h2>
           <p id="result-soldout-text" class="section-subtitle">—</p>
         </div>
 
         <!-- Done Button -->
-        <button id="done-btn" class="btn btn-primary" style="margin-top:28px;">
-          ติดตามเราบน Facebook 💚
-        </button>
-
+        <button id="done-btn" class="btn btn-secondary">ติดตามเราบน Facebook</button>
       </div>
     </section>
 
-  </div><!-- end #app -->
+  </main><!-- end #app -->
 
   <!-- Scripts (โหลด Config ก่อน แล้วค่อย Main Script) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.min.js" integrity="sha384-dl/4LkSyQ4uEucc48NM6VDZLAjLLq9yMzZ5JLXumBq7Ld33XBof73hseOqPhO89+" crossorigin="anonymous"></script>
@@ -146,6 +133,7 @@
   <script src="wheelConfig.js"></script>
   <script src="js/retryQueue.js"></script>
   <script src="js/drawPayload.js"></script>
+  <script src="js/wheelLabel.js"></script>
   <script src="script.js"></script>
 
 </body>

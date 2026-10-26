@@ -63,8 +63,10 @@
     // Render form dynamically จาก config (fields, brands, PDPA)
     renderForm();
 
-    // ตั้งค่า Logo
+    // ตั้งค่า Logo + ชื่องาน
     setupLogo();
+    document.getElementById('event-name').textContent = WHEEL_CONFIG.eventName || '';
+    document.body.dataset.step = state.currentPage;
 
     // วาดวงล้อครั้งแรก
     drawWheel(state.currentAngle);
@@ -159,6 +161,8 @@
     Object.values(pages).forEach(el => el.classList.remove('active'));
     pages[page].classList.add('active');
     state.currentPage = page;
+    document.body.dataset.step = page;
+    window.scrollTo(0, 0);
   }
 
   // ----------------------------------------------------------
@@ -457,23 +461,29 @@
     return WHEEL_CONFIG.prizes.filter(p => state.prizesRemaining[p.id] > 0);
   }
 
+  // Wheel geometry/font sizes are in this coordinate space regardless of canvas resolution
+  const WHEEL_LOGICAL_SIZE = 380;
+
   function drawWheel(rotationAngle, segments = getActiveSegments()) {
     const canvas = dom.canvas;
     const ctx = canvas.getContext('2d');
     const total = segments.length;
 
+    const size = WHEEL_LOGICAL_SIZE;
+    ctx.setTransform(canvas.width / size, 0, 0, canvas.height / size, 0, 0);
+
     if (total === 0) {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.clearRect(0, 0, size, size);
       return;
     }
 
-    const cx = canvas.width / 2;
-    const cy = canvas.height / 2;
+    const cx = size / 2;
+    const cy = size / 2;
     const r  = cx - 4;
     const arc = (2 * Math.PI) / total;
     const cfg = WHEEL_CONFIG.wheel;
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(0, 0, size, size);
 
     segments.forEach((seg, i) => {
       const startAngle = rotationAngle + i * arc;
@@ -522,8 +532,9 @@
       // Label
       ctx.font = `600 ${cfg.fontSize}px ${cfg.fontFamily}`;
       const iconGap = cfg.iconGap || 28;
-      const maxW = textR - iconGap;
-      wrapText(ctx, seg.label, textR - iconGap, 0, maxW, cfg.fontSize * 1.3);
+      // keep clear of the center hub (radius 22) so labels never run into it
+      const maxW = textR - iconGap - 32;
+      wrapText(ctx, seg.label, textR - iconGap, 0, maxW, cfg);
 
       ctx.restore();
     });
@@ -546,16 +557,29 @@
     ctx.textBaseline = 'alphabetic';
   }
 
-  function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
+  // One line if it fits, else two lines split at a word boundary;
+  // shrink the font (down to 9px) until the widest line fits maxWidth.
+  function wrapText(ctx, text, x, y, maxWidth, cfg) {
+    const setSize = px => { ctx.font = `600 ${px}px ${cfg.fontFamily}`; };
+    let px = cfg.fontSize;
+    setSize(px);
+
     if (ctx.measureText(text).width <= maxWidth) {
-      ctx.fillText(text, x, y + lineHeight / 4);
+      ctx.fillText(text, x, y + px * 1.3 / 4);
       return;
     }
-    const half = Math.ceil(text.length / 2);
-    const line1 = text.slice(0, half);
-    const line2 = text.slice(half);
-    ctx.fillText(line1, x, y - lineHeight / 2 + lineHeight / 4);
-    ctx.fillText(line2, x, y + lineHeight / 2 + lineHeight / 4);
+
+    const lines = splitLabel(text);
+    const widest = () => Math.max(...lines.map(l => ctx.measureText(l).width));
+    while (px > 9 && widest() > maxWidth) setSize(--px);
+
+    const lineHeight = px * 1.3;
+    if (lines.length === 1) {
+      ctx.fillText(lines[0], x, y + lineHeight / 4);
+      return;
+    }
+    ctx.fillText(lines[0], x, y - lineHeight / 2 + lineHeight / 4);
+    ctx.fillText(lines[1], x, y + lineHeight / 2 + lineHeight / 4);
   }
 
   // ----------------------------------------------------------
@@ -674,6 +698,10 @@
     }
 
     dom.resultName.textContent = prize.label;
+    // ชื่อ + เวลา ให้ทีมงานเช็คได้ว่าเป็นผลของคนนี้ ไม่ใช่ภาพหน้าจอเก่า
+    const who = [state.userData?.firstName, state.userData?.lastName].filter(Boolean).join(' ');
+    const when = new Date().toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' });
+    document.getElementById('result-meta').textContent = who ? `${who} · ${when}` : when;
     showPage('result');
     launchConfetti();
   }
