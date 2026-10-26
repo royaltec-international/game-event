@@ -1706,9 +1706,38 @@ function updatePrizeCardStats() {
 // Icon grid is collapsed behind a button showing the current icon; picking re-renders and closes it
 function toggleIconPicker(i, btn) {
   const grid = document.getElementById('icon-picker-' + i);
-  grid.hidden = !grid.hidden;
-  btn.setAttribute('aria-expanded', String(!grid.hidden));
+  const open = grid.hidden;
+  closeIconPickers();
+  grid.hidden = !open;
+  btn.setAttribute('aria-expanded', String(open));
 }
+
+function closeIconPickers() {
+  document.querySelectorAll('.icon-picker:not([hidden])').forEach(grid => {
+    grid.hidden = true;
+    document.querySelector(`[aria-controls="${grid.id}"]`)?.setAttribute('aria-expanded', 'false');
+  });
+}
+
+// Click outside an open icon grid (or Esc) closes it, like a native dropdown
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.icon-picker, .icon-select-btn')) closeIconPickers();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  const open = document.querySelector('.icon-picker:not([hidden])');
+  if (!open) return;
+  closeIconPickers();
+  document.querySelector(`[aria-controls="${open.id}"]`)?.focus();
+});
+
+// Number fields select their value on focus so typing replaces it; text fields keep the caret
+// (select-all there would wipe a prize name when fixing one typo). Deferred because Safari
+// clears the selection on the mouseup that follows focus.
+document.addEventListener('focusin', (e) => {
+  const el = e.target;
+  if (el.matches('input[type="number"]')) setTimeout(() => el.select(), 0);
+});
 
 function setPrize(i, key, val) {
   state.prizes[i][key] = val;
