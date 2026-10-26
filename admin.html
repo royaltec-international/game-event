@@ -116,7 +116,7 @@
     }
     .mobile-topbar-title { font-size: 15px; font-weight: 700; color: #fff; }
     .sidebar-overlay { display: none; }
-    .topbar-toggle-btn { display: none; }
+    .btn.topbar-toggle-btn { display: none; }  /* .btn sets display later; needs the higher specificity */
     .topbar-event-actions { display: contents; }
 
     /* ─── Main ─── */
@@ -447,7 +447,7 @@
       .qty-stepper, .field-card-actions { gap: 8px; }
       .qty-stepper input { min-height: 44px; }
       .field-grid-4 { grid-template-columns: 1fr 1fr; }
-      .topbar-toggle-btn { display: inline-flex; }
+      .btn.topbar-toggle-btn { display: inline-flex; }
       .topbar-event-actions {
         display: none; flex-direction: column; align-items: flex-start;
         gap: 8px; width: 100%; margin-top: 8px;
