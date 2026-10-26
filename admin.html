@@ -271,13 +271,32 @@
       display: flex; align-items: center; justify-content: center; font-size: 16px;
       background: var(--brand-tint); border: 1px solid var(--border);
     }
+    .prize-badge span, .prize-badge svg { display: block; }
+
+    .icon-select-btn {
+      display: inline-flex; align-items: center; gap: 10px; min-height: 44px; padding: 6px 12px 6px 6px;
+      background: var(--field); border: 1px solid var(--border-strong); border-radius: var(--radius-input);
+      font: inherit; font-size: 14px; color: var(--text); cursor: pointer; align-self: flex-start;
+    }
+    .icon-select-btn:hover { border-color: var(--brand); }
+    .icon-select-btn[aria-expanded="true"] { border-color: var(--brand); box-shadow: 0 0 0 1px var(--brand); }
+    .icon-select-preview {
+      width: 32px; height: 32px; border-radius: var(--radius-sm); background: var(--brand-tint);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .icon-select-preview svg { display: block; }
+    .icon-select-caret { color: var(--text-muted); font-size: 12px; }
 
     .icon-picker {
-      display: grid; grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); gap: 6px;
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 6px;
+      margin-top: 8px; padding: 8px; max-height: 320px; overflow-y: auto;
+      background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm);
     }
+    .icon-picker[hidden] { display: none; }
     .icon-picker-btn {
-      min-width: 44px; min-height: 44px; padding: 8px;
-      display: flex; align-items: center; justify-content: center;
+      min-width: 44px; min-height: 64px; padding: 8px 4px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+      font: inherit; font-size: 11px; line-height: 1.25; color: var(--text-2); text-align: center;
       background: var(--surface); border: 1px solid var(--border);
       border-radius: var(--radius-sm); cursor: pointer;
     }
@@ -1566,9 +1585,9 @@ function renderPrizes() {
     const selectedIcon = iconNameFor(p);
     const iconButtons = Object.keys(PRIZE_ICONS).map(name => {
       const label = PRIZE_ICON_LABELS[name];
-      return `<button type="button" class="icon-picker-btn" title="${label}" aria-label="${label}"
+      return `<button type="button" class="icon-picker-btn" title="${label}"
         aria-pressed="${name === selectedIcon}" onclick="setPrize(${i},'iconName','${name}');renderPrizes()">
-        ${iconSvg(name, '#1f5f8b', 22)}
+        ${iconSvg(name, '#1f5f8b', 24)}<span>${label}</span>
       </button>`;
     }).join('');
 
@@ -1624,7 +1643,13 @@ function renderPrizes() {
 
       <div class="form-group" style="margin-top:12px;">
         <label>ไอคอนบนวงล้อ</label>
-        <div class="icon-picker">${iconButtons}</div>
+        <button type="button" class="icon-select-btn" aria-expanded="false" aria-controls="icon-picker-${i}"
+          onclick="toggleIconPicker(${i}, this)">
+          <span class="icon-select-preview">${iconSvg(selectedIcon, '#1f5f8b', 22)}</span>
+          <span>${PRIZE_ICON_LABELS[selectedIcon]}</span>
+          <span class="icon-select-caret" aria-hidden="true">▾</span>
+        </button>
+        <div class="icon-picker" id="icon-picker-${i}" hidden>${iconButtons}</div>
       </div>
 
       <div class="prob-bar-wrap">
@@ -1676,6 +1701,13 @@ function updatePrizeCardStats() {
     fill.style.width = `${totalInitial > 0 ? (used / totalInitial) * 100 : 0}%`;
     fill.style.background = remaining === 0 ? 'var(--danger)' : 'var(--brand)';
   });
+}
+
+// Icon grid is collapsed behind a button showing the current icon; picking re-renders and closes it
+function toggleIconPicker(i, btn) {
+  const grid = document.getElementById('icon-picker-' + i);
+  grid.hidden = !grid.hidden;
+  btn.setAttribute('aria-expanded', String(!grid.hidden));
 }
 
 function setPrize(i, key, val) {
