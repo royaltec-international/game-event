@@ -815,7 +815,7 @@
                 <span class="toggle-label">บังคับยินยอมก่อน Submit ฟอร์ม</span>
               </label>
               <div class="preview-box">
-                💡 บันทึกลง Google Sheet คอลัมน์ <strong>PDPA Consent</strong> เป็น <strong>YES</strong> / <strong>NO</strong>
+                💡 บันทึกในรายชื่อผู้ลงทะเบียน คอลัมน์ <strong>PDPA Consent</strong> เป็น <strong>YES</strong> / <strong>NO</strong>
               </div>
             </div>
           </div>
@@ -963,7 +963,7 @@ async function createEvent(name, slug) {
     prizes: [], formFields: getDefaultFormFields(),
     brandsCheckbox: { enabled: false, items: [] },
     pdpa: {
-      enabled: false,
+      enabled: true,   // new events ask for consent by default (the player still ticks the box themselves)
       text: 'ข้าพเจ้ายินยอมให้บริษัทฯ เก็บรวบรวม ใช้ และ/หรือเปิดเผยข้อมูลส่วนบุคคลของข้าพเจ้า เพื่อวัตถุประสงค์ในการติดต่อสื่อสาร นำเสนอผลิตภัณฑ์และบริการ ตามพระราชบัญญัติคุ้มครองข้อมูลส่วนบุคคล พ.ศ. 2562 (PDPA)',
       required: true,
     },
