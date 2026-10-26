@@ -56,7 +56,13 @@
     });
 
     // โหลด Config + remaining จาก Server (อัปเดตทับ local)
-    await loadConfig();
+    const serverConfig = await loadConfig();
+
+    // ไม่มี ?event= หรือหา event ไม่เจอ → แสดงหน้า "ไม่พบงานนี้" แทนฟอร์ม/วงล้อ
+    if (decideView(resolveEventSlug(location.search), serverConfig) === 'not-found') {
+      showNotFound();
+      return;
+    }
 
     drainRetryQueue().catch(console.error);
 
@@ -80,16 +86,19 @@
   // ----------------------------------------------------------
   //  Load Config from Server
   // ----------------------------------------------------------
+  // คืน config ที่โหลดได้จาก server (null = ไม่มี slug / ไม่พบ event / server ใช้ไม่ได้)
   async function loadConfig() {
+    let config = null;
     try {
       // โหลด config จาก server
-      const config = await loadConfigFromServer();
+      config = await loadConfigFromServer();
       if (config) {
         Object.assign(WHEEL_CONFIG, config);
       }
     } catch (e) {
-      console.log('Using local config (server unavailable)');
+      console.log('Event config unavailable (server error)');
     }
+    if (!config) return null;
 
     // ข้อความปุ่มติดตามเรา (admin แก้ได้) — ว่าง = ข้อความเดิม
     dom.doneBtn.textContent = followButtonLabel(WHEEL_CONFIG.followButtonText);
@@ -110,6 +119,18 @@
     }
 
     await preloadPrizeImages();
+    return config;
+  }
+
+  // Event not found: remove form/wheel/result entirely so nothing can be registered or spun
+  function showNotFound() {
+    [dom.formSection, dom.wheelSection, dom.resultSection].forEach(el => el.remove());
+    setupLogo();
+    document.getElementById('event-name').textContent = '';
+    document.body.dataset.view = 'not-found';
+    document.body.dataset.step = '';
+    const nf = document.getElementById('notfound-section');
+    nf.classList.add('active');
   }
 
   // โหลดรูปของรางวัล (ถ้ามี) เข้า cache ก่อนวาดวงล้อครั้งแรก

@@ -202,6 +202,10 @@ body[data-step="result"] .steps li[data-step="wheel"] .step-dot {
   to   { opacity: 1; transform: translateY(0); }
 }
 
+/* ---------- Event not found (no/unknown ?event=) ---------- */
+body[data-view="not-found"] .steps { display: none; }
+.notfound-text { margin-bottom: 0; }
+
 /* ---------- Card ---------- */
 .card {
   background: var(--surface);

@@ -123,12 +123,24 @@
       </div>
     </section>
 
+    <!-- ======================================================
+         Event not found: no ?event= slug, or the event could not be loaded.
+         Shown instead of the form/wheel (those sections are removed by script.js).
+         ====================================================== -->
+    <section id="notfound-section" class="page-section" aria-label="ไม่พบงาน">
+      <div class="card card-center">
+        <h1 class="section-title">ไม่พบงานนี้</h1>
+        <p class="section-subtitle notfound-text">กรุณาสแกน QR Code ของงานอีกครั้ง หรือสอบถามเจ้าหน้าที่</p>
+      </div>
+    </section>
+
   </main><!-- end #app -->
 
   <!-- Scripts (โหลด Config ก่อน แล้วค่อย Main Script) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.min.js" integrity="sha384-dl/4LkSyQ4uEucc48NM6VDZLAjLLq9yMzZ5JLXumBq7Ld33XBof73hseOqPhO89+" crossorigin="anonymous"></script>
   <script src="supabaseClient.js"></script>
   <script src="js/eventSlug.js"></script>
+  <script src="js/eventView.js"></script>
   <script src="js/remainingPrizes.js"></script>
   <script src="wheelConfig.js"></script>
   <script src="js/retryQueue.js"></script>

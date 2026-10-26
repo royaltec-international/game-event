@@ -62,15 +62,12 @@ const WHEEL_CONFIG = {
 
 let CURRENT_EVENT_ID = null;
 
-// โหลด Config จาก Supabase (ตาม ?event=<slug> ใน URL, fallback เป็น event ที่ is_active)
+// โหลด Config จาก Supabase (ตาม ?event=<slug> ใน URL — ไม่มี slug = ไม่โหลด ไม่มี fallback)
 async function loadConfigFromServer() {
   const slug = resolveEventSlug(location.search);
+  if (!slug) return null;
 
-  const query = slug
-    ? supabase.from('events').select('*').eq('slug', slug).single()
-    : supabase.from('events').select('*').eq('is_active', true).single();
-
-  const { data, error } = await query;
+  const { data, error } = await supabase.from('events').select('*').eq('slug', slug).single();
   if (error || !data) {
     console.error('Error loading event config:', error);
     return null;
@@ -80,7 +77,7 @@ async function loadConfigFromServer() {
   return { ...data.config, eventName: data.name, __eventId: data.id };
 }
 
-// โหลด Config ของ event ที่ระบุ id ตรงๆ (ใช้โดยหน้า admin — event ที่เลือกใน dropdown อาจไม่ใช่ event ที่ is_active)
+// โหลด Config ของ event ที่ระบุ id ตรงๆ (ใช้โดยหน้า admin — event ที่เลือกใน dropdown)
 async function loadEventConfigById(eventId) {
   const { data, error } = await supabase.from('events').select('*').eq('id', eventId).single();
   if (error || !data) {
