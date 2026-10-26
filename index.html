@@ -90,11 +90,21 @@
           <!-- Pointer (SVG Arrow) -->
           <div id="wheel-pointer" class="wheel-pointer" aria-hidden="true">
             <svg width="34" height="40" viewBox="0 0 34 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M17 38 L3 6 Q2 2 6 2 H28 Q32 2 31 6 Z" fill="#162c3b" stroke="#ffffff" stroke-width="3" stroke-linejoin="round"/>
+              <defs>
+                <linearGradient id="wheel-pointer-fill" x1="17" y1="2" x2="17" y2="38" gradientUnits="userSpaceOnUse">
+                  <stop stop-color="#ffffff"/>
+                  <stop offset="1" stop-color="#c99700"/>
+                </linearGradient>
+              </defs>
+              <path d="M17 38 L3 6 Q2 2 6 2 H28 Q32 2 31 6 Z" fill="url(#wheel-pointer-fill)" stroke="#ffffff" stroke-width="3" stroke-linejoin="round"/>
             </svg>
           </div>
-          <!-- Canvas -->
-          <canvas id="wheelCanvas" width="760" height="760" aria-label="วงล้อรางวัล"></canvas>
+          <div class="wheel-stage">
+            <div class="wheel-rim" aria-hidden="true"></div>
+            <canvas id="wheelCanvas" width="760" height="760" aria-label="วงล้อรางวัล"></canvas>
+            <div class="wheel-gloss" aria-hidden="true"></div>
+            <div class="wheel-hub" aria-hidden="true">หมุน</div>
+          </div>
         </div>
 
         <button id="spin-btn" class="btn btn-primary">หมุนวงล้อ</button>
@@ -110,7 +120,7 @@
         <!-- Won Prize View -->
         <div id="result-won-view">
           <p id="result-kicker" class="result-kicker">ยินดีด้วย! คุณได้รับรางวัล</p>
-          <div id="result-icon" class="result-icon">🎁</div>
+          <div id="result-icon" class="result-icon"></div>
           <div id="result-prize-name" class="result-prize-name">—</div>
           <p id="result-meta" class="result-meta"></p>
 
@@ -162,6 +172,8 @@
   <script src="js/retryQueue.js"></script>
   <script src="js/drawPayload.js"></script>
   <script src="js/wheelLabel.js"></script>
+  <script src="js/wheelTheme.js"></script>
+  <script src="js/prizeIcons.js"></script>
   <script src="js/followButtonLabel.js"></script>
   <script src="script.js"></script>
 

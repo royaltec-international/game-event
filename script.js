@@ -20,6 +20,8 @@
 
   // prizeId -> loaded HTMLImageElement, populated by preloadPrizeImages()
   const prizeImages = {};
+  // iconName|ink -> loaded HTMLImageElement for wheel slices
+  const wheelIconImages = new Map();
 
   // ----------------------------------------------------------
   //  DOM refs
@@ -147,8 +149,9 @@
   }
 
   // โหลดรูปของรางวัล (ถ้ามี) เข้า cache ก่อนวาดวงล้อครั้งแรก
-  // จำกัดเวลารอไว้กันรูปโหลดช้า/พังบล็อกหน้าเว็บ — ถ้าไม่ทันก็ fallback เป็น emoji
+  // จำกัดเวลารอไว้กันรูปโหลดช้า/พังบล็อกหน้าเว็บ; wheel icons load independently.
   function preloadPrizeImages() {
+    preloadWheelIcons(getActiveSegments());
     const loads = (WHEEL_CONFIG.prizes || [])
       .filter(p => p.imagePath)
       .map(p => new Promise(resolve => {
@@ -160,6 +163,27 @@
       }));
     if (loads.length === 0) return Promise.resolve();
     return Promise.race([Promise.all(loads), new Promise(resolve => setTimeout(resolve, 1500))]);
+  }
+
+  function getWheelIconImage(prize, ink) {
+    const name = iconNameFor(prize);
+    const key = `${name}|${ink}`;
+    if (!wheelIconImages.has(key)) {
+      const img = new Image();
+      wheelIconImages.set(key, img);
+      img.onload = () => {
+        if (!state.isSpinning) drawWheel(state.currentAngle);
+      };
+      img.src = iconDataUrl(name, ink);
+    }
+    return wheelIconImages.get(key);
+  }
+
+  function preloadWheelIcons(segments) {
+    const palette = wheelPalette(segments.length);
+    segments.forEach((prize, i) => {
+      getWheelIconImage(prize, inkFor(palette[i]));
+    });
   }
 
   // ----------------------------------------------------------
@@ -520,6 +544,8 @@
     const r  = cx - 4;
     const arc = (2 * Math.PI) / total;
     const cfg = WHEEL_CONFIG.wheel;
+    const palette = wheelPalette(total);
+    const layout = wheelLayout(total);
 
     ctx.clearRect(0, 0, size, size);
 
@@ -527,79 +553,70 @@
       const startAngle = rotationAngle + i * arc;
       const endAngle   = startAngle + arc;
       const midAngle   = startAngle + arc / 2;
+      const fill = palette[i];
+      const ink = inkFor(fill);
 
       // Slice
       ctx.beginPath();
       ctx.moveTo(cx, cy);
       ctx.arc(cx, cy, r, startAngle, endAngle);
       ctx.closePath();
-      ctx.fillStyle = seg.color;
+      ctx.fillStyle = fill;
       ctx.fill();
-      ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-      ctx.lineWidth = 2;
+      ctx.strokeStyle = 'rgba(255,255,255,.85)';
+      ctx.lineWidth = 1.5;
       ctx.stroke();
 
-      // Text
       ctx.save();
       ctx.translate(cx, cy);
-      ctx.rotate(midAngle);
+      ctx.fillStyle = ink;
+      ctx.textBaseline = 'alphabetic';
 
-      const textR = r * (cfg.textRadiusRatio || 0.55);
-      ctx.textAlign = 'right';
-      ctx.fillStyle = seg.textColor || '#ffffff';
-      ctx.font = `600 ${cfg.fontSize}px ${cfg.fontFamily}`;
-      ctx.shadowColor = 'rgba(0,0,0,0.4)';
-      ctx.shadowBlur = 4;
+      if (layout === 'stack') {
+        ctx.rotate(midAngle + Math.PI / 2);
+        const iconSize = 22;
+        const iconRadius = r * 0.74;
+        const icon = getWheelIconImage(seg, ink);
+        if (icon.complete && icon.naturalWidth > 0) {
+          ctx.drawImage(icon, -iconSize / 2, -iconRadius - iconSize / 2, iconSize, iconSize);
+        }
 
-      // Icon (photo if the prize has one, emoji otherwise)
-      const prizeImg = prizeImages[seg.id];
-      if (prizeImg) {
-        const size = cfg.fontSize + 10;
-        ctx.save();
-        ctx.beginPath();
-        ctx.arc(textR + 4, 4, size / 2, 0, Math.PI * 2);
-        ctx.clip();
-        ctx.drawImage(prizeImg, textR + 4 - size / 2, 4 - size / 2, size, size);
-        ctx.restore();
+        const chordWidth = total <= 2
+          ? r * 0.9
+          : 2 * iconRadius * Math.sin(arc / 2);
+        ctx.textAlign = 'center';
+        wrapText(ctx, seg.label, 0, -(iconRadius - 22), chordWidth - 8, cfg, 500, cfg.fontSize, 9);
       } else {
-        const iconFont = `${cfg.fontSize + 2}px serif`;
-        ctx.font = iconFont;
-        ctx.fillText(seg.icon, textR + 4, 4);
-      }
+        const flipped = Math.cos(midAngle) < 0;
+        const direction = flipped ? -1 : 1;
+        ctx.rotate(midAngle + (flipped ? Math.PI : 0));
 
-      // Label
-      ctx.font = `600 ${cfg.fontSize}px ${cfg.fontFamily}`;
-      const iconGap = cfg.iconGap || 28;
-      // keep clear of the center hub (radius 22) so labels never run into it
-      const maxW = textR - iconGap - 32;
-      wrapText(ctx, seg.label, textR - iconGap, 0, maxW, cfg);
+        if (layout === 'radial-icon') {
+          const iconSize = total > 10 ? 17 : 20;
+          const iconX = direction * (r - 22);
+          const icon = getWheelIconImage(seg, ink);
+          if (icon.complete && icon.naturalWidth > 0) {
+            ctx.drawImage(icon, iconX - iconSize / 2, -iconSize / 2, iconSize, iconSize);
+          }
+          const labelX = direction * (r - 40);
+          ctx.textAlign = flipped ? 'left' : 'right';
+          wrapText(ctx, seg.label, labelX, 0, (r - 40) - 34, cfg, 500, cfg.fontSize, 9);
+        } else {
+          const labelX = direction * (r - 16);
+          ctx.textAlign = flipped ? 'left' : 'right';
+          wrapText(ctx, seg.label, labelX, 0, (r - 16) - 34, cfg, 500, cfg.fontSize * 0.85, 9);
+        }
+      }
 
       ctx.restore();
     });
-
-    // Center circle
-    ctx.beginPath();
-    ctx.arc(cx, cy, 22, 0, 2 * Math.PI);
-    ctx.fillStyle = WHEEL_CONFIG.wheel.centerCircleColor;
-    ctx.fill();
-    ctx.strokeStyle = WHEEL_CONFIG.wheel.centerCircleBorderColor;
-    ctx.lineWidth = 3;
-    ctx.stroke();
-
-    // Center icon
-    ctx.fillStyle = '#ffd700';
-    ctx.font = 'bold 16px serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('★', cx, cy);
-    ctx.textBaseline = 'alphabetic';
   }
 
   // One line if it fits, else two lines split at a word boundary;
   // shrink the font (down to 9px) until the widest line fits maxWidth.
-  function wrapText(ctx, text, x, y, maxWidth, cfg) {
-    const setSize = px => { ctx.font = `600 ${px}px ${cfg.fontFamily}`; };
-    let px = cfg.fontSize;
+  function wrapText(ctx, text, x, y, maxWidth, cfg, weight, startPx, minPx) {
+    const setSize = px => { ctx.font = `${weight} ${px}px ${cfg.fontFamily}`; };
+    let px = startPx;
     setSize(px);
 
     if (ctx.measureText(text).width <= maxWidth) {
@@ -609,7 +626,10 @@
 
     const lines = splitLabel(text);
     const widest = () => Math.max(...lines.map(l => ctx.measureText(l).width));
-    while (px > 9 && widest() > maxWidth) setSize(--px);
+    while (px > minPx && widest() > maxWidth) {
+      px = Math.max(minPx, px - 1);
+      setSize(px);
+    }
 
     const lineHeight = px * 1.3;
     if (lines.length === 1) {
@@ -745,7 +765,7 @@
       imgEl.className = 'result-icon-image';
       dom.resultIcon.appendChild(imgEl);
     } else {
-      dom.resultIcon.textContent = prize.icon;
+      dom.resultIcon.innerHTML = iconSvg(iconNameFor(prize), '#1f5f8b', 64);
     }
 
     dom.resultName.textContent = prize.label;
