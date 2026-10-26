@@ -269,7 +269,27 @@
     .prize-badge {
       width: 30px; height: 30px; border-radius: var(--radius-sm);
       display: flex; align-items: center; justify-content: center; font-size: 16px;
+      background: var(--brand-tint); border: 1px solid var(--border);
     }
+
+    .icon-picker {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); gap: 6px;
+    }
+    .icon-picker-btn {
+      min-width: 44px; min-height: 44px; padding: 8px;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); cursor: pointer;
+    }
+    .icon-picker-btn:hover { border-color: var(--brand); }
+    .icon-picker-btn[aria-pressed="true"] {
+      background: var(--brand-tint); border-color: var(--brand);
+      box-shadow: 0 0 0 1px var(--brand);
+    }
+    .icon-picker-btn:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+    .icon-picker-btn svg { display: block; }
+
+    #add-prize-btn.at-cap { opacity: 0.5; }
 
     .prize-image-thumb {
       width: 48px; height: 48px; border-radius: 50%;
@@ -292,7 +312,7 @@
     }
 
     .prize-grid {
-      display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 12px; align-items: end;
+      display: grid; grid-template-columns: 2fr 1fr; gap: 12px; align-items: end;
     }
 
     .form-group { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
@@ -358,15 +378,6 @@
     #toast-msg.show { transform: translateX(-50%) translateY(0); }
     #toast-msg.ok  { border-color: var(--success); }
     #toast-msg.err { border-color: var(--danger); }
-
-    /* ─── Color presets ─── */
-    .color-presets { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 6px; }
-    .color-dot {
-      width: 22px; height: 22px; border-radius: 50%; cursor: pointer;
-      border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--border-strong);
-      transition: box-shadow 0.15s, transform 0.15s;
-    }
-    .color-dot:hover { box-shadow: 0 0 0 2px var(--brand); transform: scale(1.2); }
 
     /* ─── Loading overlay ─── */
     .loading-overlay {
@@ -642,7 +653,8 @@
           <div style="text-align:right;"><div class="total-lbl">คงเหลือทั้งหมด</div><div class="total-val" id="total-remaining">0</div></div>
         </div>
         <div id="prizes-list" class="prizes-list"></div>
-        <button class="btn btn-outline" style="width:100%;margin-top:14px;" onclick="addPrize()">
+        <div class="field-group-hint" style="font-size:12px;margin-top:10px;">แนะนำ 6–12 รายการ (สูงสุด 16)</div>
+        <button id="add-prize-btn" class="btn btn-outline" style="width:100%;margin-top:14px;" onclick="addPrize()">
           + เพิ่มของรางวัล
         </button>
       </div>
@@ -842,11 +854,12 @@
 <script src="js/exportRows.js"></script>
 <script src="wheelConfig.js"></script>
 <script src="js/prizeImage.js"></script>
+<script src="js/prizeIcons.js"></script>
+<script src="js/wheelTheme.js"></script>
 <script>
 // ══════════════════════════════════════════════════════════
 //  State
 // ══════════════════════════════════════════════════════════
-const PALETTE = ['#f9c74f','#4cc9f0','#43aa8b','#f94144','#9b5de5','#ff6b35','#06d6a0','#e9c46a','#118ab2','#e76f51'];
 const PRIZE_IMAGE_BUCKET = 'prize-images';
 
 let state = {
@@ -1548,16 +1561,20 @@ function renderPrizes() {
     
     const card = document.createElement('div');
     card.className = 'prize-card';
-
-    const presetDots = PALETTE.map(c =>
-      `<div class="color-dot" style="background:${c}" title="${c}" onclick="setPrizeColor(${i},'${c}')"></div>`
-    ).join('');
+    const selectedIcon = iconNameFor(p);
+    const iconButtons = Object.keys(PRIZE_ICONS).map(name => {
+      const label = PRIZE_ICON_LABELS[name];
+      return `<button type="button" class="icon-picker-btn" title="${label}" aria-label="${label}"
+        aria-pressed="${name === selectedIcon}" onclick="setPrize(${i},'iconName','${name}');renderPrizes()">
+        ${iconSvg(name, '#1f5f8b', 22)}
+      </button>`;
+    }).join('');
 
     card.innerHTML = `
       <div class="prize-card-header">
         <div class="prize-card-title">
-          <div class="prize-badge" style="background:${p.color}22;border:1px solid ${p.color}55;">
-            <span id="badge-icon-${i}">${p.icon}</span>
+          <div class="prize-badge">
+            <span id="badge-icon-${i}">${iconSvg(selectedIcon, '#1f5f8b', 20)}</span>
           </div>
           <span class="prize-label-text">${esc(p.label) || 'รางวัล #' + (i+1)}</span>
           <span class="chip">${prob}% โอกาส</span>
@@ -1583,26 +1600,12 @@ function renderPrizes() {
             <button class="btn btn-outline btn-sm btn-icon" onclick="stepQty(${i},1)">+</button>
           </div>
         </div>
-        <div class="form-group">
-          <label>สี Slice</label>
-          <div style="display:flex;align-items:center;gap:8px;">
-            <input type="color" value="${p.color}" oninput="setPrize(${i},'color',this.value)" />
-            <span style="font-size:11px;color:var(--text-muted);">${p.color}</span>
-          </div>
-        </div>
-        <div class="form-group">
-          <label>สีตัวอักษร</label>
-          <div style="display:flex;align-items:center;gap:8px;">
-            <input type="color" value="${p.textColor}" oninput="setPrize(${i},'textColor',this.value)" />
-            <span style="font-size:11px;color:var(--text-muted);">${p.textColor}</span>
-          </div>
-        </div>
       </div>
 
       <div style="display:flex;gap:12px;margin-top:12px;align-items:end;flex-wrap:wrap;">
         <div class="form-group" style="flex:0 0 160px;">
           <label>รูปของรางวัล</label>
-          <span class="prize-image-field-caption">ถ้ามี จะใช้แทน Emoji Icon ด้านล่าง</span>
+          <span class="prize-image-field-caption">แสดงในหน้าผลรางวัล (วงล้อใช้ไอคอน)</span>
 
           ${p.imagePath
             ? `<div style="margin-bottom:8px;"><img src="${esc(supabase.storage.from(PRIZE_IMAGE_BUCKET).getPublicUrl(p.imagePath).data.publicUrl)}" class="prize-image-thumb" alt="" /></div>`
@@ -1615,16 +1618,11 @@ function renderPrizes() {
 
           ${p.imagePath ? `<div><button class="btn btn-outline btn-sm" style="margin-top:8px;" onclick="removePrizeImage(${i})">ลบรูป</button></div>` : ''}
         </div>
-        <div class="form-group" style="flex:0 0 90px;">
-          <label>Emoji Icon</label>
-          <input type="text" value="${esc(p.icon)}" placeholder="ว่าง" maxlength="4"
-            oninput="setPrize(${i},'icon',this.value);document.getElementById('badge-icon-${i}').textContent=this.value"
-            style="font-size:20px;text-align:center;" />
-        </div>
-        <div class="form-group" style="flex:1;min-width:160px;">
-          <label>สีด่วน (คลิกเพื่อใช้)</label>
-          <div class="color-presets">${presetDots}</div>
-        </div>
+      </div>
+
+      <div class="form-group" style="margin-top:12px;">
+        <label>ไอคอนบนวงล้อ</label>
+        <div class="icon-picker">${iconButtons}</div>
       </div>
 
       <div class="prob-bar-wrap">
@@ -1633,12 +1631,17 @@ function renderPrizes() {
           <span class="prob-bar-usage">ใช้ไป ${used} ชิ้น | คงเหลือ ${remaining} ชิ้น</span>
         </div>
         <div class="prob-bar-track">
-          <div class="prob-bar-fill" style="width:${totalInitial > 0 ? (used/totalInitial)*100 : 0}%;background:${remaining === 0 ? 'var(--danger)' : p.color};"></div>
+          <div class="prob-bar-fill" style="width:${totalInitial > 0 ? (used/totalInitial)*100 : 0}%;background:${remaining === 0 ? 'var(--danger)' : 'var(--brand)'};"></div>
         </div>
       </div>
     `;
     list.appendChild(card);
   });
+
+  const addButton = document.getElementById('add-prize-btn');
+  const atCap = state.prizes.length >= MAX_PRIZES;
+  addButton.classList.toggle('at-cap', atCap);
+  addButton.setAttribute('aria-disabled', String(atCap));
 }
 
 // อัปเดตแค่ตัวเลข/ป้ายที่คำนวณจาก state โดยไม่แตะ input ที่กำลังพิมพ์อยู่ (renderPrizes() ทำ innerHTML ใหม่ทั้งลิสต์ ทำให้ focus หลุดทุก keystroke)
@@ -1669,18 +1672,13 @@ function updatePrizeCardStats() {
     card.querySelector('.prob-bar-usage').textContent = `ใช้ไป ${used} ชิ้น | คงเหลือ ${remaining} ชิ้น`;
     const fill = card.querySelector('.prob-bar-fill');
     fill.style.width = `${totalInitial > 0 ? (used / totalInitial) * 100 : 0}%`;
-    fill.style.background = remaining === 0 ? 'var(--danger)' : p.color;
+    fill.style.background = remaining === 0 ? 'var(--danger)' : 'var(--brand)';
   });
 }
 
 function setPrize(i, key, val) {
   state.prizes[i][key] = val;
   if (key === 'quantity' || key === 'label') updatePrizeCardStats();
-}
-
-function setPrizeColor(i, color) {
-  state.prizes[i].color = color;
-  renderPrizes();
 }
 
 function stepQty(i, d) {
@@ -1745,14 +1743,15 @@ async function removePrizeImage(i) {
 }
 
 function addPrize() {
-  const color = PALETTE[state.prizes.length % PALETTE.length];
+  if (state.prizes.length >= MAX_PRIZES) {
+    toast('ใส่ของรางวัลได้สูงสุด 16 รายการ — วงล้อจะอ่านยากถ้ามากกว่านี้', 'err');
+    return;
+  }
   const newPrize = {
     id: 'prize_' + Date.now(),
     label: '',
     quantity: 10,
-    color,
-    textColor: '#ffffff',
-    icon: '🎁'
+    iconName: 'gift'
   };
   state.prizes.push(newPrize);
   renderPrizes();
