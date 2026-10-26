@@ -311,11 +311,30 @@
 
     #add-prize-btn.at-cap { opacity: 0.5; }
 
-    .stock-adjust-btn { margin-top: 8px; align-self: flex-start; }
-    .stock-adjust {
-      margin-top: 12px; padding: 14px; border-radius: var(--radius-sm);
+    /* Prize card: basics row (name + icon), stock box, photo row */
+    .prize-basics {
+      display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: end;
+    }
+    .prize-basics .icon-select-btn { min-height: 46px; }
+    .stock-box {
+      margin-top: 16px; padding: 14px 16px; border-radius: var(--radius-sm);
       background: var(--surface2); border: 1px solid var(--border);
     }
+    .stock-box-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+    .section-label { font-size: 13px; font-weight: 600; color: var(--text-2); }
+    .stock-box-body { display: flex; align-items: flex-end; gap: 12px 24px; flex-wrap: wrap; }
+    .stock-total { flex: 0 1 240px; }
+    .stock-figures { display: flex; gap: 20px; padding-bottom: 10px; font-size: 14px; color: var(--text-2); }
+    .stock-figures b { font-size: 20px; font-weight: 600; color: var(--text); margin-left: 4px; font-variant-numeric: tabular-nums; }
+    .stock-box .prob-bar-track { margin-top: 12px; }
+    .stock-adjust {
+      margin-top: 14px; padding: 14px; border-radius: var(--radius-sm);
+      background: var(--surface); border: 1px solid var(--border);
+    }
+    .photo-row { margin-top: 16px; }
+    .photo-row label .prize-image-field-caption { display: inline; margin: 0 0 0 6px; font-weight: 400; }
+    .photo-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .photo-controls .prize-image-filename { margin: 0; }
     .stock-adjust[hidden] { display: none; }
     .stock-adjust-modes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     .stock-mode {
@@ -483,7 +502,8 @@
 
     @media (max-width: 480px) {
       .field-grid-4 { grid-template-columns: 1fr; }
-      .prize-grid { grid-template-columns: 1fr; }
+      .prize-grid, .prize-basics { grid-template-columns: 1fr; }
+      .prize-basics .icon-select-btn { justify-self: start; }
       .section-body { padding: 16px; }
     }
 
@@ -1588,6 +1608,14 @@ function startAutoRefresh() {
 // ══════════════════════════════════════════════════════════
 //  PRIZES
 // ══════════════════════════════════════════════════════════
+// Stock box figures: given out / left, and the bar's share of this prize's own total
+function stockFigures(used, remaining) {
+  return `<span>แจกไปแล้ว <b>${used}</b></span><span>คงเหลือ <b>${remaining}</b></span>`;
+}
+function usedPct(used, quantity) {
+  return quantity > 0 ? Math.min(100, (used / quantity) * 100) : 0;
+}
+
 function renderPrizes() {
   const stats = prizeStats(state.prizes, state.used);
   const totalInitial = stats.totals.quantity;
@@ -1639,78 +1667,75 @@ function renderPrizes() {
         <button class="btn btn-danger btn-sm btn-icon" onclick="removePrize(${i})">✕</button>
       </div>
 
-      <div class="prize-grid">
+      <div class="prize-basics">
         <div class="form-group">
           <label>ชื่อรางวัล *</label>
           <input type="text" value="${esc(p.label)}" placeholder="ชื่อของรางวัล"
             oninput="setPrize(${i},'label',this.value)" />
         </div>
         <div class="form-group">
-          <label>จำนวนรวมตั้งแต่เริ่มงาน</label>
-          <div class="qty-stepper">
-            <button class="btn btn-outline btn-sm btn-icon" onclick="stepQty(${i},-1)">−</button>
-            <input type="number" value="${p.quantity}" min="${used}" max="9999"
-              oninput="setPrize(${i},'quantity',+this.value)" />
-            <button class="btn btn-outline btn-sm btn-icon" onclick="stepQty(${i},1)">+</button>
-          </div>
-          <button type="button" class="btn btn-outline btn-sm stock-adjust-btn" aria-expanded="false"
+          <label>ไอคอนบนวงล้อ</label>
+          <button type="button" class="icon-select-btn" aria-expanded="false" aria-controls="icon-picker-${i}"
+            onclick="toggleIconPicker(${i}, this)">
+            <span class="icon-select-preview">${iconSvg(selectedIcon, '#1f5f8b', 22)}</span>
+            <span>${PRIZE_ICON_LABELS[selectedIcon]}</span>
+            <span class="icon-select-caret" aria-hidden="true">▾</span>
+          </button>
+        </div>
+      </div>
+      <div class="icon-picker" id="icon-picker-${i}" hidden>${iconButtons}</div>
+
+      <div class="stock-box">
+        <div class="stock-box-head">
+          <span class="section-label">สต็อก</span>
+          <button type="button" class="btn btn-outline btn-sm" aria-expanded="false"
             aria-controls="stock-adjust-${i}" onclick="toggleStockAdjust(${i})">± ปรับสต็อก (เติม / หักของ)</button>
         </div>
+        <div class="stock-box-body">
+          <div class="form-group stock-total">
+            <label>จำนวนรวมตั้งแต่เริ่มงาน</label>
+            <div class="qty-stepper">
+              <button class="btn btn-outline btn-sm btn-icon" onclick="stepQty(${i},-1)" aria-label="ลด 1">−</button>
+              <input type="number" value="${p.quantity}" min="${used}" max="9999"
+                oninput="setPrize(${i},'quantity',+this.value)" />
+              <button class="btn btn-outline btn-sm btn-icon" onclick="stepQty(${i},1)" aria-label="เพิ่ม 1">+</button>
+            </div>
+          </div>
+          <div class="stock-figures prob-bar-usage">${stockFigures(used, remaining)}</div>
+        </div>
+        <div class="prob-bar-track" aria-hidden="true">
+          <div class="prob-bar-fill" style="width:${usedPct(used, p.quantity)}%;background:${remaining === 0 ? 'var(--danger)' : 'var(--brand)'};"></div>
+        </div>
+
+        <div class="stock-adjust" id="stock-adjust-${i}" hidden>
+          <div class="stock-adjust-modes" role="radiogroup" aria-label="ประเภทการปรับ">
+            <label class="stock-mode"><input type="radio" name="stock-mode-${i}" value="1" checked
+              onchange="previewStock(${i})" /> <span>เติมของ<small>เช่น ของสำหรับวันถัดไป</small></span></label>
+            <label class="stock-mode"><input type="radio" name="stock-mode-${i}" value="-1"
+              onchange="previewStock(${i})" /> <span>หักของ<small>แจกนอกเกม / ของเสีย</small></span></label>
+          </div>
+          <div class="stock-adjust-row">
+            <input type="number" id="stock-amount-${i}" min="1" max="9999" inputmode="numeric"
+              placeholder="จำนวนชิ้น" oninput="previewStock(${i})" />
+            <button type="button" class="btn btn-primary btn-sm" id="stock-apply-${i}" disabled
+              onclick="applyStock(${i})">ยืนยันและบันทึก</button>
+            <button type="button" class="btn btn-outline btn-sm" onclick="toggleStockAdjust(${i})">ยกเลิก</button>
+          </div>
+          <div class="stock-preview" id="stock-preview-${i}" aria-live="polite">คงเหลือตอนนี้ ${remaining} ชิ้น — ใส่จำนวนชิ้นที่จะเติมหรือหัก</div>
+        </div>
       </div>
 
-      <div class="stock-adjust" id="stock-adjust-${i}" hidden>
-        <div class="stock-adjust-modes" role="radiogroup" aria-label="ประเภทการปรับ">
-          <label class="stock-mode"><input type="radio" name="stock-mode-${i}" value="1" checked
-            onchange="previewStock(${i})" /> <span>เติมของ<small>เช่น ของสำหรับวันถัดไป</small></span></label>
-          <label class="stock-mode"><input type="radio" name="stock-mode-${i}" value="-1"
-            onchange="previewStock(${i})" /> <span>หักของ<small>แจกนอกเกม / ของเสีย</small></span></label>
-        </div>
-        <div class="stock-adjust-row">
-          <input type="number" id="stock-amount-${i}" min="1" max="9999" inputmode="numeric"
-            placeholder="จำนวนชิ้น" oninput="previewStock(${i})" />
-          <button type="button" class="btn btn-primary btn-sm" id="stock-apply-${i}" disabled
-            onclick="applyStock(${i})">ยืนยันและบันทึก</button>
-          <button type="button" class="btn btn-outline btn-sm" onclick="toggleStockAdjust(${i})">ยกเลิก</button>
-        </div>
-        <div class="stock-preview" id="stock-preview-${i}" aria-live="polite">คงเหลือตอนนี้ ${remaining} ชิ้น — ใส่จำนวนชิ้นที่จะเติมหรือหัก</div>
-      </div>
-
-      <div style="display:flex;gap:12px;margin-top:12px;align-items:end;flex-wrap:wrap;">
-        <div class="form-group" style="flex:0 0 160px;">
-          <label>รูปของรางวัล</label>
-          <span class="prize-image-field-caption">แสดงในหน้าผลรางวัล (วงล้อใช้ไอคอน)</span>
-
+      <div class="photo-row">
+        <label>รูปของรางวัล <span class="prize-image-field-caption">แสดงในหน้าผลรางวัล (วงล้อใช้ไอคอน)</span></label>
+        <div class="photo-controls">
           ${p.imagePath
-            ? `<div style="margin-bottom:8px;"><img src="${esc(supabase.storage.from(PRIZE_IMAGE_BUCKET).getPublicUrl(p.imagePath).data.publicUrl)}" class="prize-image-thumb" alt="" /></div>`
+            ? `<img src="${esc(supabase.storage.from(PRIZE_IMAGE_BUCKET).getPublicUrl(p.imagePath).data.publicUrl)}" class="prize-image-thumb" alt="" />`
             : ''}
-
           <input type="file" accept="image/*" id="prize-image-input-${i}" class="prize-image-input-hidden"
             onchange="handlePrizeImageSelect(${i}, this); document.getElementById('prize-image-filename-${i}').textContent = this.files[0] ? this.files[0].name : 'ยังไม่ได้เลือกไฟล์';" />
           <label class="btn btn-outline btn-sm" for="prize-image-input-${i}">📷 เลือกรูป</label>
-          <span class="prize-image-filename" id="prize-image-filename-${i}">ยังไม่ได้เลือกไฟล์</span>
-
-          ${p.imagePath ? `<div><button class="btn btn-outline btn-sm" style="margin-top:8px;" onclick="removePrizeImage(${i})">ลบรูป</button></div>` : ''}
-        </div>
-      </div>
-
-      <div class="form-group" style="margin-top:12px;">
-        <label>ไอคอนบนวงล้อ</label>
-        <button type="button" class="icon-select-btn" aria-expanded="false" aria-controls="icon-picker-${i}"
-          onclick="toggleIconPicker(${i}, this)">
-          <span class="icon-select-preview">${iconSvg(selectedIcon, '#1f5f8b', 22)}</span>
-          <span>${PRIZE_ICON_LABELS[selectedIcon]}</span>
-          <span class="icon-select-caret" aria-hidden="true">▾</span>
-        </button>
-        <div class="icon-picker" id="icon-picker-${i}" hidden>${iconButtons}</div>
-      </div>
-
-      <div class="prob-bar-wrap">
-        <div class="prob-bar-label">
-          <span>📊 สถิติการใช้งาน</span>
-          <span class="prob-bar-usage">ใช้ไป ${used} ชิ้น | คงเหลือ ${remaining} ชิ้น</span>
-        </div>
-        <div class="prob-bar-track">
-          <div class="prob-bar-fill" style="width:${totalInitial > 0 ? (used/totalInitial)*100 : 0}%;background:${remaining === 0 ? 'var(--danger)' : 'var(--brand)'};"></div>
+          ${p.imagePath ? `<button class="btn btn-outline btn-sm" onclick="removePrizeImage(${i})">ลบรูป</button>` : ''}
+          <span class="prize-image-filename" id="prize-image-filename-${i}">${p.imagePath ? '' : 'ยังไม่ได้เลือกไฟล์'}</span>
         </div>
       </div>
     `;
@@ -1748,9 +1773,9 @@ function updatePrizeCardStats() {
     const badge = card.querySelector('.stock-badge');
     badge.className = `stock-badge ${stockClass}`;
     badge.textContent = `📦 คงเหลือ: ${remaining}/${p.quantity} ${stockText}`;
-    card.querySelector('.prob-bar-usage').textContent = `ใช้ไป ${used} ชิ้น | คงเหลือ ${remaining} ชิ้น`;
+    card.querySelector('.prob-bar-usage').innerHTML = stockFigures(used, remaining);
     const fill = card.querySelector('.prob-bar-fill');
-    fill.style.width = `${totalInitial > 0 ? (used / totalInitial) * 100 : 0}%`;
+    fill.style.width = `${usedPct(used, p.quantity)}%`;
     fill.style.background = remaining === 0 ? 'var(--danger)' : 'var(--brand)';
   });
 }
