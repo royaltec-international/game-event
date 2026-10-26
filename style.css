@@ -205,6 +205,8 @@ body[data-step="result"] .steps li[data-step="wheel"] .step-dot {
 /* ---------- Event not found (no/unknown ?event=) ---------- */
 body[data-view="not-found"] .steps { display: none; }
 .notfound-text { margin-bottom: 0; }
+.notfound-retry { margin-top: 20px; }
+.notfound-retry[hidden] { display: none; }
 
 /* ---------- Card ---------- */
 .card {

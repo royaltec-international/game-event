@@ -68,10 +68,10 @@ async function loadConfigFromServer() {
   if (!slug) return null;
 
   const { data, error } = await supabase.from('events').select('*').eq('slug', slug).single();
-  if (error || !data) {
-    console.error('Error loading event config:', error);
-    return null;
-  }
+  // PGRST116 = no row for this slug → event not found. Any other error (network, 5xx) is
+  // thrown so the game page can show "connection problem + retry" instead of "not found".
+  if (error && error.code !== 'PGRST116') throw error;
+  if (!data) return null;
 
   CURRENT_EVENT_ID = data.id;
   return { ...data.config, eventName: data.name, __eventId: data.id };

@@ -56,11 +56,12 @@
     });
 
     // โหลด Config + remaining จาก Server (อัปเดตทับ local)
-    const serverConfig = await loadConfig();
+    const { config: serverConfig, failed } = await loadConfig();
 
-    // ไม่มี ?event= หรือหา event ไม่เจอ → แสดงหน้า "ไม่พบงานนี้" แทนฟอร์ม/วงล้อ
-    if (decideView(resolveEventSlug(location.search), serverConfig) === 'not-found') {
-      showNotFound();
+    // ไม่มี ?event= / หา event ไม่เจอ / ต่อ server ไม่ได้ → แสดงการ์ดแจ้งแทนฟอร์ม/วงล้อ
+    const view = decideView(resolveEventSlug(location.search), serverConfig, failed);
+    if (view !== 'game') {
+      showNotFound(view);
       return;
     }
 
@@ -86,9 +87,10 @@
   // ----------------------------------------------------------
   //  Load Config from Server
   // ----------------------------------------------------------
-  // คืน config ที่โหลดได้จาก server (null = ไม่มี slug / ไม่พบ event / server ใช้ไม่ได้)
+  // คืน { config, failed } — config null = ไม่มี slug / ไม่พบ event; failed = ต่อ server ไม่ได้
   async function loadConfig() {
     let config = null;
+    let failed = false;
     try {
       // โหลด config จาก server
       config = await loadConfigFromServer();
@@ -96,9 +98,10 @@
         Object.assign(WHEEL_CONFIG, config);
       }
     } catch (e) {
-      console.log('Event config unavailable (server error)');
+      console.error('Event config unavailable (server error):', e);
+      failed = true;
     }
-    if (!config) return null;
+    if (!config) return { config: null, failed };
 
     // ข้อความปุ่มติดตามเรา (admin แก้ได้) — ว่าง = ข้อความเดิม
     dom.doneBtn.textContent = followButtonLabel(WHEEL_CONFIG.followButtonText);
@@ -119,17 +122,25 @@
     }
 
     await preloadPrizeImages();
-    return config;
+    return { config, failed: false };
   }
 
-  // Event not found: remove form/wheel/result entirely so nothing can be registered or spun
-  function showNotFound() {
+  // No playable event: remove form/wheel/result entirely so nothing can be registered or spun.
+  // view 'unavailable' = server unreachable → different text + retry button (reload)
+  function showNotFound(view) {
     [dom.formSection, dom.wheelSection, dom.resultSection].forEach(el => el.remove());
     setupLogo();
     document.getElementById('event-name').textContent = '';
     document.body.dataset.view = 'not-found';
     document.body.dataset.step = '';
     const nf = document.getElementById('notfound-section');
+    if (view === 'unavailable') {
+      document.getElementById('notfound-title').textContent = 'เชื่อมต่อไม่สำเร็จ';
+      document.getElementById('notfound-text').textContent = 'ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่อีกครั้ง';
+      const retry = document.getElementById('notfound-retry');
+      retry.hidden = false;
+      retry.addEventListener('click', () => location.reload());
+    }
     nf.classList.add('active');
   }
 
