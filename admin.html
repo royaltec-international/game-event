@@ -959,6 +959,8 @@ async function loadEventList() {
 
 async function selectEvent(eventId) {
   state.currentEventId = eventId;
+  // Keep the dropdown in step: link/QR/export read the slug and name from its selected option
+  document.getElementById('event-select').value = eventId;
   await loadFromServer();
   if (typeof loadRegistrations === 'function') await loadRegistrations();
 }
