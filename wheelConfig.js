@@ -1,23 +1,20 @@
 // ============================================================
 //  wheelConfig.js — Real-time Sync Version
-//  Config จะโหลดจาก Google Sheets แบบ real-time
+//  Config + ของรางวัลโหลดจาก Supabase — ค่าในไฟล์นี้เป็น fallback
 // ============================================================
 
 const WHEEL_CONFIG = {
-  // ─── Google Apps Script URL (ต้องตั้งค่าก่อน deploy) ───
-  googleScriptUrl: "https://script.google.com/macros/s/AKfycbyaor7J_coNoEyjM0DVuoWDzqd-rI-HhZfXqbA1MrBpU_P8ZHMqSaLV-TbRL7_LPDg3xQ/exec",
-
   // ─── Default Values (ใช้ตอนโหลดครั้งแรกหรือ fallback) ───
   lineAddFriendUrl: "https://www.facebook.com/RoyaltecThailand",
   logoUrl: "https://royaltec-international.github.io/game-event/Royaltec_logo.png",
   logoAlt: "Company Logo",
 
   prizes: [
-    { id: "notepad",      label: "โน๊ตก้อน",       weight: 50, quantity: 55, color: "#f9c74f", textColor: "#1a1a2e", icon: "📓" },
-    { id: "calculator",   label: "เครื่องคิดเลข",   weight: 0.5, quantity: 2,  color: "#4cc9f0", textColor: "#1a1a2e", icon: "🧮" },
-    { id: "fan",          label: "พัดลม",           weight: 0.5, quantity: 2,  color: "#43aa8b", textColor: "#ffffff", icon: "🌀" },
-    { id: "special",      label: "ร่ม",             weight: 0.5, quantity: 1,  color: "#9b5de5", textColor: "#ffffff", icon: "🎁" },
-    { id: "belden_gift_1",label: "สายชาร์จ Belden", weight: 2,   quantity: 10, color: "#ff6b35", textColor: "#ffffff", icon: "🔌" },
+    { id: "notepad",      label: "โน๊ตก้อน",      quantity: 55, color: "#f9c74f", textColor: "#1a1a2e", icon: "📓" },
+    { id: "calculator",   label: "เครื่องคิดเลข",  quantity: 2,  color: "#4cc9f0", textColor: "#1a1a2e", icon: "🧮" },
+    { id: "fan",          label: "พัดลม",          quantity: 2,  color: "#43aa8b", textColor: "#ffffff", icon: "🌀" },
+    { id: "special",      label: "ร่ม",            quantity: 1,  color: "#9b5de5", textColor: "#ffffff", icon: "🎁" },
+    { id: "belden_gift_1",label: "สายชาร์จ Belden",quantity: 10, color: "#ff6b35", textColor: "#ffffff", icon: "🔌" },
   ],
 
   formFields: [
@@ -122,19 +119,36 @@ async function getRemainingPrizes() {
   return computeRemainingMap(data);
 }
 
-// ลดสต็อกของรางวัลแบบ atomic ผ่าน RPC (คืนค่า remaining ใหม่ หรือ null ถ้าของหมดพอดี)
-async function decrementPrizeRpc(prizeId) {
+// ดึงจำนวนที่แจกไปแล้วของแต่ละรางวัล (ใช้โดยหน้า admin)
+async function getPrizeUsage() {
   if (!CURRENT_EVENT_ID) return null;
 
-  const { data, error } = await supabase.rpc('decrement_prize', {
-    p_event_id: CURRENT_EVENT_ID,
-    p_prize_id: prizeId,
-  });
+  const { data, error } = await supabase
+    .from('prizes')
+    .select('id, used')
+    .eq('event_id', CURRENT_EVENT_ID);
 
-  if (error) {
-    console.error('Error decrementing prize:', error);
+  if (error || !data) {
+    console.error('Error getting prize usage:', error);
     return null;
   }
 
-  return data;
+  return computeUsedMap(data);
+}
+
+// สุ่มรางวัลฝั่ง server (ถ่วงน้ำหนักตามจำนวนคงเหลือ) + ตัดสต็อก + บันทึกผู้ลงทะเบียน ในครั้งเดียว
+// คืน { prizeId, prizeLabel, remaining } — prizeId เป็น null ถ้าของหมด (ข้อมูลลงทะเบียนยังถูกบันทึก)
+// throw ถ้าเรียกไม่สำเร็จ (ไม่มีอะไรถูกบันทึก — ให้ผู้ใช้กดใหม่ได้)
+async function drawPrizeRpc(registration) {
+  if (!CURRENT_EVENT_ID) throw new Error('No event loaded');
+
+  const { data, error } = await supabase.rpc('draw_prize', {
+    p_event_id: CURRENT_EVENT_ID,
+    p_registration: registration,
+  });
+
+  if (error) throw error;
+
+  const row = (data && data[0]) || {};
+  return { prizeId: row.prize_id || null, prizeLabel: row.prize_label || '', remaining: row.remaining ?? 0 };
 }

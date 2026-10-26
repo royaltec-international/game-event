@@ -409,9 +409,20 @@
     dom.submitBtn.disabled = false;
 
     if (getActiveSegments().length === 0) {
-      // ของรางวัลหมดตั้งแต่ก่อนเข้าหน้าวงล้อ — บันทึกข้อมูลลงทะเบียนไว้เลย ไม่ต้องรอหมุน
-      insertRegistration({ ...state.userData, prize: '', prizeId: '' }).catch(console.error);
-      showSoldOut();
+      // ของรางวัลหมดตั้งแต่ก่อนเข้าหน้าวงล้อ — ส่งผ่าน draw_prize เพื่อบันทึกข้อมูลลงทะเบียน (ได้ผลว่าไม่มีรางวัล)
+      dom.submitBtn.disabled = true;
+      try {
+        const result = await drawPrizeRpc(buildRegistrationPayload(state.userData));
+        // admin อาจเพิ่มสต็อกพอดี — ถ้า server ให้รางวัลมาก็แสดงผลเลย
+        const prize = result.prizeId && WHEEL_CONFIG.prizes.find(p => p.id === result.prizeId);
+        if (prize) showResult(prize);
+        else showSoldOut();
+      } catch (err) {
+        console.error(err);
+        showToast('บันทึกข้อมูลไม่สำเร็จ กรุณาลองใหม่', 'error');
+      } finally {
+        dom.submitBtn.disabled = false;
+      }
       return;
     }
 
@@ -420,33 +431,8 @@
   }
 
   // ----------------------------------------------------------
-  //  Supabase Registration Insert + Retry Queue
+  //  Legacy Retry Queue — แถวที่เวอร์ชันเก่าค้างไว้ใน localStorage ของเครื่องนี้
   // ----------------------------------------------------------
-  async function insertRegistration(payload) {
-    const row = {
-      event_id: CURRENT_EVENT_ID,
-      first_name: payload.firstName || '',
-      last_name: payload.lastName || '',
-      email: payload.email || '',
-      phone: payload.phone || '',
-      company: payload.company || '',
-      position: payload.position || '',
-      prize_label: payload.prize || '',
-      prize_id: payload.prizeId || '',
-      brands: payload.brands || '',
-      pdpa_consent: payload.pdpaConsent === 'true' ? 'YES' : payload.pdpaConsent === 'false' ? 'NO' : 'N/A',
-      custom_fields: payload.customFields ? JSON.parse(payload.customFields) : null,
-    };
-
-    const { error } = await supabase.from('registrations').insert(row);
-    if (error) {
-      console.error('Insert failed, queueing for retry:', error);
-      queueFailedRegistration(window.localStorage, row);
-      return false;
-    }
-    return true;
-  }
-
   async function drainRetryQueue() {
     const pending = readRetryQueue(window.localStorage);
     if (pending.length === 0) return;
@@ -471,10 +457,9 @@
     return WHEEL_CONFIG.prizes.filter(p => state.prizesRemaining[p.id] > 0);
   }
 
-  function drawWheel(rotationAngle) {
+  function drawWheel(rotationAngle, segments = getActiveSegments()) {
     const canvas = dom.canvas;
     const ctx = canvas.getContext('2d');
-    const segments = getActiveSegments();
     const total = segments.length;
 
     if (total === 0) {
@@ -574,42 +559,25 @@
   }
 
   // ----------------------------------------------------------
-  //  Prize Selection (Weighted Random)
-  // ----------------------------------------------------------
-  function pickPrize() {
-    const active = getActiveSegments();
-    if (active.length === 0) return null;
-
-    const totalWeight = active.reduce((s, p) => s + p.weight, 0);
-    let rand = Math.random() * totalWeight;
-    for (const prize of active) {
-      rand -= prize.weight;
-      if (rand <= 0) return prize;
-    }
-    return active[active.length - 1];
-  }
-
-  // ----------------------------------------------------------
   //  Spin
+  //  ผลสุ่มมาจาก server (draw_prize) — สุ่มตามจำนวนคงเหลือ + ตัดสต็อก + บันทึกข้อมูลลงทะเบียนในครั้งเดียว
+  //  วงล้อแค่หมุนไปหยุดที่รางวัลที่ server เลือกให้
   // ----------------------------------------------------------
   async function handleSpin() {
     if (state.isSpinning) return;
 
     dom.spinBtn.disabled = true;
 
-    let active;
+    let result;
+    let shown;
     try {
-      // Sync config + จำนวนคงเหลือล่าสุดจาก Supabase ก่อนคำนวณวงล้อ
-      // กันกรณี admin แก้ของรางวัล (ชื่อ/เพิ่ม/ลบ) ระหว่างที่หน้านี้เปิดค้างไว้ ไม่ใช่แค่จำนวนคงเหลือ
+      // Sync config + จำนวนคงเหลือล่าสุดจาก Supabase ก่อนหมุน
+      // กันกรณี admin แก้ของรางวัล (ชื่อ/เพิ่ม/ลบ) ระหว่างที่หน้านี้เปิดค้างไว้
       await loadConfig();
-      drawWheel(state.currentAngle);
+      shown = getActiveSegments();
+      drawWheel(state.currentAngle, shown);
 
-      active = getActiveSegments();
-      if (active.length === 0) {
-        showToast('ของรางวัลหมดแล้ว!', 'error');
-        dom.spinBtn.disabled = false;
-        return;
-      }
+      result = await drawPrizeRpc(buildRegistrationPayload(state.userData));
     } catch (err) {
       console.error(err);
       showToast('เกิดข้อผิดพลาด กรุณาลองใหม่', 'error');
@@ -617,12 +585,26 @@
       return;
     }
 
-    const prize = pickPrize();
+    if (!result.prizeId) {
+      // ของหมดก่อนถึงคิว — server บันทึกข้อมูลลงทะเบียนแล้ว (ไม่มีรางวัล)
+      dom.spinBtn.disabled = false;
+      showSoldOut();
+      return;
+    }
+
+    const segments = segmentsForSpin(shown, WHEEL_CONFIG.prizes, result.prizeId);
+    if (!segments) {
+      // รางวัลถูกลบออกจาก config ระหว่างนี้ — ไม่มี slice ให้หมุนไปหา แสดงผลเลย
+      dom.spinBtn.disabled = false;
+      showResult({ id: result.prizeId, label: result.prizeLabel, icon: '🎁' });
+      return;
+    }
+
+    const prize = segments.find(s => s.id === result.prizeId);
     state.wonPrize = prize;
     state.isSpinning = true;
     dom.canvas.classList.add('spinning');
 
-    const segments = getActiveSegments();
     const segCount = segments.length;
     const prizeIndex = segments.findIndex(s => s.id === prize.id);
     const arc = (2 * Math.PI) / segCount;
@@ -635,41 +617,17 @@
     const diff = ((targetNorm - currentNorm) + 2 * Math.PI) % (2 * Math.PI);
     const targetAngle = state.currentAngle + diff + (2 * Math.PI * rotations);
 
-    spinAnimate(state.currentAngle, targetAngle, cfg.durationMs, async () => {
+    spinAnimate(state.currentAngle, targetAngle, cfg.durationMs, segments, () => {
       state.currentAngle = targetAngle;
       state.isSpinning = false;
       dom.canvas.classList.remove('spinning');
-
-      try {
-        const newRemaining = await decrementPrizeRpc(prize.id);
-
-        if (newRemaining === null) {
-          // ของหมดพอดีตอนกำลังหมุน — บังคับหมุนใหม่ ห้ามสุ่มของอื่นแทน (วงล้อโชว์ผลไปแล้ว)
-          showToast('ของชิ้นนี้เพิ่งหมดพอดี กรุณาหมุนใหม่', 'error');
-          state.prizesRemaining[prize.id] = 0;
-          drawWheel(state.currentAngle);
-          return;
-        }
-
-        state.prizesRemaining[prize.id] = newRemaining;
-
-        insertRegistration({
-          ...state.userData,
-          prize: prize.label,
-          prizeId: prize.id,
-        }).catch(console.error);
-
-        showResult(prize);
-      } catch (err) {
-        console.error(err);
-        showToast('เกิดข้อผิดพลาด กรุณาลองใหม่', 'error');
-      } finally {
-        dom.spinBtn.disabled = false;
-      }
+      state.prizesRemaining[prize.id] = result.remaining;
+      dom.spinBtn.disabled = false;
+      showResult(prize);
     });
   }
 
-  function spinAnimate(from, to, duration, onDone) {
+  function spinAnimate(from, to, duration, segments, onDone) {
     const start = performance.now();
     const diff  = to - from;
 
@@ -679,12 +637,12 @@
       const eased = easeOutCubic(progress);
       const angle = from + diff * eased;
 
-      drawWheel(angle);
+      drawWheel(angle, segments);
 
       if (progress < 1) {
         requestAnimationFrame(frame);
       } else {
-        drawWheel(to);
+        drawWheel(to, segments);
         onDone();
       }
     }

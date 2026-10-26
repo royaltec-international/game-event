@@ -745,12 +745,13 @@
 
 <div id="toast-msg"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.min.js" integrity="sha384-dl/4LkSyQ4uEucc48NM6VDZLAjLLq9yMzZ5JLXumBq7Ld33XBof73hseOqPhO89+" crossorigin="anonymous"></script>
 <script src="supabaseClient.js"></script>
 <script src="js/sessionGuard.js"></script>
 <script src="js/eventLink.js"></script>
 <script src="js/dateRangeFilter.js"></script>
 <script src="js/remainingPrizes.js"></script>
+<script src="js/prizeOdds.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="js/exportRows.js"></script>
 <script src="wheelConfig.js"></script>
@@ -767,7 +768,7 @@ let state = {
   currentEventId: null,
   registrations: [],
   general: {},
-  remaining: {},     // { prizeId: count }
+  used: {},          // { prizeId: given-out count } from prizes table
   eventName: '',     // ชื่องาน Event
   formFields: [],    // Form field configs
   brandsCheckbox: {  // Brands checkbox section
@@ -848,7 +849,7 @@ async function loadEventList() {
 
   const select = document.getElementById('event-select');
   select.innerHTML = data.map(ev =>
-    `<option value="${ev.id}" data-slug="${ev.slug}" data-name="${esc(ev.name)}">${ev.name}${ev.is_active ? ' (ปัจจุบัน)' : ''}</option>`
+    `<option value="${ev.id}" data-slug="${ev.slug}" data-name="${esc(ev.name)}">${esc(ev.name)}${ev.is_active ? ' (ปัจจุบัน)' : ''}</option>`
   ).join('');
 
   if (!state.currentEventId && data.length > 0) {
@@ -931,7 +932,7 @@ async function deleteCurrentEvent() {
     await selectEvent(state.currentEventId);
   } else {
     state.prizes = [];
-    state.remaining = {};
+    state.used = {};
     renderPrizes();
     renderRegistrationsTable([]);
   }
@@ -942,16 +943,13 @@ async function deleteCurrentEvent() {
 async function syncPrizesTable(eventId, prizes) {
   const { data: existing, error: fetchErr } = await supabase
     .from('prizes')
-    .select('id, used')
+    .select('id')
     .eq('event_id', eventId);
 
   if (fetchErr) {
     console.error('Error fetching existing prizes for sync:', fetchErr);
     return false;
   }
-
-  const usedMap = {};
-  (existing || []).forEach(row => { usedMap[row.id] = row.used; });
 
   const currentIds = prizes.map(p => p.id);
 
@@ -961,7 +959,8 @@ async function syncPrizesTable(eventId, prizes) {
       event_id: eventId,
       label: p.label,
       quantity: p.quantity,
-      used: usedMap[p.id] !== undefined ? usedMap[p.id] : 0,
+      // `used` is deliberately omitted: draw_prize() increments it while the
+      // event runs, so writing back a value read earlier would lose draws
     }));
 
     const { error: upsertErr } = await supabase
@@ -1226,17 +1225,8 @@ async function loadFromServer() {
       };
     }
     
-    // Load remaining counts
-    const remaining = await getRemainingPrizes();
-    if (remaining) {
-      state.remaining = remaining;
-    } else {
-      // Initialize from config quantities
-      state.remaining = {};
-      state.prizes.forEach(p => {
-        state.remaining[p.id] = p.quantity;
-      });
-    }
+    // Load given-out counts (remaining = quantity - used, computed live while editing)
+    state.used = (await getPrizeUsage()) || {};
     
     renderPrizes();
     loadGeneral();
@@ -1261,8 +1251,7 @@ async function loadFromServer() {
       maxRot:   WHEEL_CONFIG.spin?.maxRotations || 10,
       duration: WHEEL_CONFIG.spin?.durationMs || 5000
     };
-    state.remaining = {};
-    state.prizes.forEach(p => { state.remaining[p.id] = p.quantity; });
+    state.used = {};
     
     renderPrizes();
     loadGeneral();
@@ -1307,19 +1296,31 @@ async function saveToServer() {
       }
     };
     
+    // ตั้งจำนวนต่ำกว่าที่แจกไปแล้วไม่ได้ (DB ปฏิเสธ) — เช็คกับยอดล่าสุดจาก server ก่อนบันทึก
+    state.used = (await getPrizeUsage()) || state.used;
+    const tooLow = quantityBelowUsed(state.prizes, state.used);
+    if (tooLow.length > 0) {
+      renderPrizes();
+      const names = tooLow.map(p => `${p.label || p.id} (แจกไปแล้ว ${p.used})`).join(', ');
+      setSyncStatus('error', 'บันทึกล้มเหลว');
+      toast(`❌ จำนวนต่ำกว่าที่แจกไปแล้ว: ${names}`, 'err');
+      btn.disabled = false;
+      return;
+    }
+
     const success = await saveConfigToServer(state.currentEventId, config);
 
     if (success) {
       const prizesSynced = await syncPrizesTable(state.currentEventId, state.prizes);
       if (!prizesSynced) {
-        console.error('Prize table sync failed after config save');
+        throw new Error('Prize table sync failed after config save');
       }
       setSyncStatus('success', 'บันทึกสำเร็จ');
       toast('บันทึกไปยัง Supabase แล้ว', 'ok');
-      // Reload remaining to update stock
-      const remaining = await getRemainingPrizes();
-      if (remaining) {
-        state.remaining = remaining;
+      // Reload given-out counts to update stock
+      const used = await getPrizeUsage();
+      if (used) {
+        state.used = used;
         renderPrizes();
       }
     } else {
@@ -1342,10 +1343,10 @@ function startAutoRefresh() {
   // Refresh every 10 seconds
   setInterval(async () => {
     try {
-      const remaining = await getRemainingPrizes();
-      if (remaining) {
-        state.remaining = remaining;
-        renderPrizes();
+      const used = await getPrizeUsage();
+      if (used) {
+        state.used = used;
+        updatePrizeCardStats();
       }
     } catch (e) {
       console.log('Auto-refresh failed:', e);
@@ -1357,20 +1358,18 @@ function startAutoRefresh() {
 //  PRIZES
 // ══════════════════════════════════════════════════════════
 function renderPrizes() {
-  const totalInitial = state.prizes.reduce((s, p) => s + +p.quantity, 0);
-  const totalRemaining = Object.values(state.remaining).reduce((s, v) => s + v, 0);
-  
+  const stats = prizeStats(state.prizes, state.used);
+  const totalInitial = stats.totals.quantity;
+
   document.getElementById('total-qty').textContent = totalInitial;
-  document.getElementById('total-remaining').textContent = totalRemaining;
+  document.getElementById('total-remaining').textContent = stats.totals.remaining;
 
   const list = document.getElementById('prizes-list');
   list.innerHTML = '';
 
   state.prizes.forEach((p, i) => {
-    const remaining = state.remaining[p.id] ?? p.quantity;
-    const used = p.quantity - remaining;
-    const prob = totalInitial > 0 ? ((p.quantity / totalInitial) * 100).toFixed(1) : 0;
-    
+    const { used, remaining, pct: prob } = stats.byId[p.id];
+
     let stockClass = 'high', stockText = 'มีเหลือเยอะ';
     if (remaining === 0) {
       stockClass = 'out';
@@ -1412,10 +1411,10 @@ function renderPrizes() {
             oninput="setPrize(${i},'label',this.value)" />
         </div>
         <div class="form-group">
-          <label>จำนวนเริ่มต้น (กำหนดโอกาส)</label>
+          <label>จำนวนทั้งหมด (โอกาสตามจำนวนคงเหลือ)</label>
           <div class="qty-stepper">
             <button class="btn btn-outline btn-sm btn-icon" onclick="stepQty(${i},-1)">−</button>
-            <input type="number" value="${p.quantity}" min="0" max="9999"
+            <input type="number" value="${p.quantity}" min="${used}" max="9999"
               oninput="setPrize(${i},'quantity',+this.value)" />
             <button class="btn btn-outline btn-sm btn-icon" onclick="stepQty(${i},1)">+</button>
           </div>
@@ -1480,15 +1479,14 @@ function renderPrizes() {
 
 // อัปเดตแค่ตัวเลข/ป้ายที่คำนวณจาก state โดยไม่แตะ input ที่กำลังพิมพ์อยู่ (renderPrizes() ทำ innerHTML ใหม่ทั้งลิสต์ ทำให้ focus หลุดทุก keystroke)
 function updatePrizeCardStats() {
-  const totalInitial = state.prizes.reduce((s, p) => s + +p.quantity, 0);
+  const stats = prizeStats(state.prizes, state.used);
+  const totalInitial = stats.totals.quantity;
   document.getElementById('total-qty').textContent = totalInitial;
-  document.getElementById('total-remaining').textContent = Object.values(state.remaining).reduce((s, v) => s + v, 0);
+  document.getElementById('total-remaining').textContent = stats.totals.remaining;
 
   document.querySelectorAll('#prizes-list .prize-card').forEach((card, i) => {
     const p = state.prizes[i];
-    const remaining = state.remaining[p.id] ?? p.quantity;
-    const used = p.quantity - remaining;
-    const prob = totalInitial > 0 ? ((p.quantity / totalInitial) * 100).toFixed(1) : 0;
+    const { used, remaining, pct: prob } = stats.byId[p.id];
 
     let stockClass = 'high', stockText = 'มีเหลือเยอะ';
     if (remaining === 0) {
@@ -1522,7 +1520,7 @@ function setPrizeColor(i, color) {
 }
 
 function stepQty(i, d) {
-  state.prizes[i].quantity = Math.max(0, (+state.prizes[i].quantity || 0) + d);
+  state.prizes[i].quantity = Math.max(state.used[state.prizes[i].id] || 0, (+state.prizes[i].quantity || 0) + d);
   renderPrizes();
 }
 
@@ -1587,14 +1585,12 @@ function addPrize() {
   const newPrize = {
     id: 'prize_' + Date.now(),
     label: '',
-    weight: 10,
     quantity: 10,
     color,
     textColor: '#ffffff',
     icon: '🎁'
   };
   state.prizes.push(newPrize);
-  state.remaining[newPrize.id] = newPrize.quantity;
   renderPrizes();
   setTimeout(() => document.getElementById('prizes-list').lastElementChild?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
 }

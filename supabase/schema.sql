@@ -1,5 +1,7 @@
 -- ============================================================
---  supabase/schema.sql — run once in Supabase SQL Editor
+--  supabase/schema.sql — baseline; run once in Supabase SQL Editor,
+--  then every file in supabase/migrations/ in filename order.
+--  Tests: supabase/tests/run.sh (needs Docker)
 -- ============================================================
 
 create table events (
