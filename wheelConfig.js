@@ -134,7 +134,8 @@ async function getPrizeUsage() {
 }
 
 // สุ่มรางวัลฝั่ง server (ถ่วงน้ำหนักตามจำนวนคงเหลือ) + ตัดสต็อก + บันทึกผู้ลงทะเบียน ในครั้งเดียว
-// คืน { prizeId, prizeLabel, remaining } — prizeId เป็น null ถ้าของหมด (ข้อมูลลงทะเบียนยังถูกบันทึก)
+// คืน { prizeId, prizeLabel, remaining, alreadyPlayed } — prizeId เป็น null ถ้าของหมด (ข้อมูลลงทะเบียนยังถูกบันทึก)
+// alreadyPlayed = เบอร์/อีเมลนี้เคยหมุนใน event นี้แล้ว → server คืนผลครั้งแรก ไม่สุ่มใหม่ ไม่บันทึกซ้ำ
 // throw ถ้าเรียกไม่สำเร็จ (ไม่มีอะไรถูกบันทึก — ให้ผู้ใช้กดใหม่ได้)
 async function drawPrizeRpc(registration) {
   if (!CURRENT_EVENT_ID) throw new Error('No event loaded');
@@ -147,5 +148,10 @@ async function drawPrizeRpc(registration) {
   if (error) throw error;
 
   const row = (data && data[0]) || {};
-  return { prizeId: row.prize_id || null, prizeLabel: row.prize_label || '', remaining: row.remaining ?? 0 };
+  return {
+    prizeId: row.prize_id || null,
+    prizeLabel: row.prize_label || '',
+    remaining: row.remaining ?? 0,
+    alreadyPlayed: row.already_played === true,
+  };
 }

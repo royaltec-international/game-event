@@ -5,10 +5,11 @@
 -- ============================================================
 \set ON_ERROR_STOP on
 
--- Fixture: one event with a common and a rare prize, one empty event
+-- Fixture: one event with a common and a rare prize, one empty event.
+-- formFields [] = no required fields, so the bulk-draw tests can send bare payloads.
 insert into events (id, name, slug, config) values
-  ('00000000-0000-0000-0000-000000000001', 'Test', 'test', '{}'),
-  ('00000000-0000-0000-0000-000000000002', 'Empty', 'empty', '{}');
+  ('00000000-0000-0000-0000-000000000001', 'Test', 'test', '{"formFields":[]}'),
+  ('00000000-0000-0000-0000-000000000002', 'Empty', 'empty', '{"formFields":[]}');
 insert into prizes (id, event_id, label, quantity, used) values
   ('common', '00000000-0000-0000-0000-000000000001', 'Common', 900, 0),
   ('rare',   '00000000-0000-0000-0000-000000000001', 'Rare',   100, 0),
