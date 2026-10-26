@@ -581,11 +581,14 @@
           ctx.drawImage(icon, -iconSize / 2, -iconRadius - iconSize / 2, iconSize, iconSize);
         }
 
+        // Label centre sits below the icon with room for a second line; the width limit uses the
+        // chord at the label's inner edge, where the slice is narrowest.
+        const labelRadius = iconRadius - 30;
         const chordWidth = total <= 2
           ? r * 0.9
-          : 2 * iconRadius * Math.sin(arc / 2);
+          : 2 * (labelRadius - 8) * Math.sin(arc / 2);
         ctx.textAlign = 'center';
-        wrapText(ctx, seg.label, 0, -(iconRadius - 22), chordWidth - 8, cfg, 500, cfg.fontSize, 9);
+        wrapText(ctx, seg.label, 0, -labelRadius, chordWidth - 8, cfg, 500, cfg.fontSize, 9);
       } else {
         const flipped = Math.cos(midAngle) < 0;
         const direction = flipped ? -1 : 1;
