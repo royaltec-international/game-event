@@ -1330,10 +1330,12 @@ function closeSidebar() {
   document.querySelector('.sidebar-overlay').classList.remove('visible');
 }
 
-function toggleTopbarActions() {
+// Mobile only: the event actions sit behind a toggle (on desktop .expanded has no effect).
+// force=false collapses them — after an action is used or the panel changes.
+function toggleTopbarActions(force) {
   const el = document.getElementById('topbar-event-actions');
   const btn = document.getElementById('topbar-toggle-btn');
-  const expanded = el.classList.toggle('expanded');
+  const expanded = el.classList.toggle('expanded', force);
   btn.textContent = expanded ? '▴ ซ่อนตัวเลือก Event' : '▾ ตัวเลือก Event';
 }
 
@@ -1350,8 +1352,13 @@ function toggleTopbarActions() {
 })();
 
 function setupNav() {
+  // Bubbles after the action's own onclick, so the action still runs before the list folds
+  document.getElementById('topbar-event-actions').addEventListener('click', (e) => {
+    if (e.target.closest('button')) toggleTopbarActions(false);
+  });
   document.querySelectorAll('.nav-item').forEach(btn => {
     btn.addEventListener('click', () => {
+      toggleTopbarActions(false);
       document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
       document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
       btn.classList.add('active');
