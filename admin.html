@@ -1103,6 +1103,11 @@ function downloadEventQr() {
   if (!url) return;
   const opt = document.getElementById('event-select').selectedOptions[0];
   const filename = qrFilename(opt.dataset.name, opt.dataset.slug);
+  // The QR follows the URL this admin page was opened from; a printed QR can't be fixed later,
+  // so show the target first and warn when it is not a public address (e.g. opened from localhost).
+  const isLocal = /^(localhost|127\.|0\.0\.0\.0|\[::1\])/.test(location.hostname) || location.protocol === 'file:';
+  const warn = isLocal ? '\n\n⚠️ ลิงก์นี้เป็นเครื่องตัวเอง (localhost) — คนอื่นสแกนแล้วจะเปิดไม่ได้ ให้เปิดหน้า admin จากเว็บจริงแล้วดาวน์โหลดใหม่' : '';
+  if (!confirm('QR นี้จะพาไปที่:\n' + url + warn + '\n\nดาวน์โหลด QR?')) return;
   let canvas;
   try { canvas = renderQrCanvas(url); }
   catch (e) { console.error('QR error:', e); toast('สร้าง QR ไม่สำเร็จ', 'err'); return; }
