@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex" />
+  <title>คู่มือ Admin — เกมวงล้อ</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --navy: #162c3b; --brand: #1f5f8b; --brand-tint: #e8f1f8;
+      --gold: #c99700; --gold-tint: #fff7dc; --danger: #c62f3a; --danger-tint: #fdecee;
+      --bg: #eef3f5; --surface: #f8fafb; --text: #13212b; --text-2: #4a5a67; --text-muted: #5f6e7a;
+      --border: #d8e0e7; --radius: 16px;
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; touch-action: manipulation; }
+    body { margin: 0; font-family: 'Kanit', system-ui, sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; font-size: 16px; }
+    header { background: var(--navy); color: #fff; padding: 28px 16px 24px; }
+    header .wrap { max-width: 860px; margin: 0 auto; }
+    header h1 { margin: 0; font-size: 26px; font-weight: 600; }
+    header p { margin: 4px 0 0; color: rgba(255,255,255,.75); font-size: 15px; }
+    main { max-width: 860px; margin: 0 auto; padding: 20px 16px 60px; }
+    nav.toc { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 20px; }
+    nav.toc h2 { margin: 0 0 6px; font-size: 16px; }
+    nav.toc ol { margin: 0; padding-left: 22px; columns: 2; column-gap: 24px; }
+    nav.toc a { color: var(--brand); text-decoration: none; }
+    nav.toc a:hover { text-decoration: underline; }
+    section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-top: 18px; scroll-margin-top: 12px; }
+    section h2 { margin: 0 0 8px; font-size: 21px; font-weight: 600; color: var(--navy); }
+    section h3 { margin: 18px 0 4px; font-size: 17px; font-weight: 600; }
+    ol.steps, ul { padding-left: 22px; margin: 6px 0; }
+    li { margin: 3px 0; }
+    figure { margin: 14px 0; }
+    figure img { display: block; width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--border); background: #fff; }
+    figure.phone img { max-width: 320px; margin: 0 auto; }
+    figcaption { font-size: 13px; color: var(--text-muted); margin-top: 6px; text-align: center; }
+    .note, .warn, .tip { border-radius: 12px; padding: 10px 14px; margin: 12px 0; font-size: 15px; }
+    .note { background: var(--brand-tint); border: 1px solid #c4d9e8; }
+    .tip { background: var(--gold-tint); border: 1px solid #ecd893; }
+    .warn { background: var(--danger-tint); border: 1px solid #f3c2c7; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .ex { font-variant-numeric: tabular-nums; background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 10px 14px; margin: 10px 0; }
+    .ex b { color: var(--brand); }
+    kbd { font-family: inherit; background: #fff; border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 6px; padding: 0 6px; font-size: 14px; }
+    @media (max-width: 640px) {
+      nav.toc ol { columns: 1; }
+      .grid2 { grid-template-columns: 1fr; }
+      header h1 { font-size: 22px; }
+    }
+  </style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>📖 คู่มือ Admin — เกมวงล้อลุ้นรางวัล</h1>
+    <p>สำหรับทีมงานที่ตั้งค่า Event, ของรางวัล และดูรายชื่อผู้ร่วมสนุก · แตะรูปเพื่อดูขนาดเต็ม</p>
+  </div>
+</header>
+
+<main>
+  <nav class="toc" aria-label="สารบัญ">
+    <h2>สารบัญ</h2>
+    <ol>
+      <li><a href="#login">เข้าสู่ระบบ</a></li>
+      <li><a href="#event">สร้าง / เลือก Event</a></li>
+      <li><a href="#link">คัดลอกลิงก์ และ QR</a></li>
+      <li><a href="#prizes">ตั้งของรางวัล</a></li>
+      <li><a href="#icon">เลือกไอคอนบนวงล้อ</a></li>
+      <li><a href="#multiday">งานหลายวัน: เติมของ</a></li>
+      <li><a href="#outside">แจกนอกเกม: หักของ</a></li>
+      <li><a href="#settings">ตั้งค่าทั่วไป และหน้าลงทะเบียน</a></li>
+      <li><a href="#player">ผู้ร่วมงานจะเห็นอะไร</a></li>
+      <li><a href="#registrations">รายชื่อ, Export, ทดสอบซ้ำ</a></li>
+      <li><a href="#delete">ลบ Event</a></li>
+      <li><a href="#faq">ปัญหาที่พบบ่อย</a></li>
+    </ol>
+  </nav>
+
+  <section id="login">
+    <h2>1. เข้าสู่ระบบ</h2>
+    <p>เปิดหน้า Admin (บุ๊กมาร์กไว้ — หน้าเกมของผู้ร่วมงานไม่มีลิงก์มาหน้านี้) แล้วใส่อีเมลและรหัสผ่านของทีมงาน</p>
+    <figure class="phone"><a href="assets/guide/01-login.webp" target="_blank" rel="noopener"><img src="assets/guide/01-login.webp" alt="หน้าเข้าสู่ระบบ Admin" loading="lazy" /></a><figcaption>หน้าเข้าสู่ระบบ</figcaption></figure>
+  </section>
+
+  <section id="event">
+    <h2>2. สร้าง / เลือก Event</h2>
+    <p>ทุกอย่างในหน้า Admin (ของรางวัล, ฟอร์ม, รายชื่อ) เป็นของ Event ที่เลือกอยู่ในช่อง <b>Event</b> ด้านบนเสมอ</p>
+    <figure><a href="assets/guide/02-topbar.webp" target="_blank" rel="noopener"><img src="assets/guide/02-topbar.webp" alt="แถบด้านบน: เลือก Event, Event ใหม่, คัดลอกลิงก์, ดาวน์โหลด QR, ลบ Event, บันทึก" loading="lazy" /></a><figcaption>แถบด้านบนบนคอม</figcaption></figure>
+    <h3>สร้าง Event ใหม่</h3>
+    <ol class="steps">
+      <li>กด <b>+ Event ใหม่</b></li>
+      <li>ใส่ <b>ชื่อ Event</b> เช่น <i>Belden Roadshow 2026</i></li>
+      <li>ใส่ <b>Slug</b> — ส่วนท้ายของลิงก์ ใช้ภาษาอังกฤษตัวเล็ก ตัวเลข และขีด <kbd>-</kbd> เช่น <i>belden-roadshow-2026</i> (ระบบเสนอให้จากชื่อ แก้ได้)</li>
+      <li>ระบบสลับไปที่ Event ใหม่ให้ทันที — เช็คชื่อในช่อง Event ก่อนทำอย่างอื่น</li>
+    </ol>
+    <div class="note">Event ใหม่เปิดส่วน <b>ขอความยินยอม PDPA</b> ไว้ให้แล้ว แต่ช่องติ๊กของผู้ร่วมงาน <b>ไม่ได้ติ๊กไว้ล่วงหน้า</b> (การติ๊กไว้ให้ก่อนไม่ถือเป็นความยินยอมตาม PDPA)</div>
+    <h3>บนมือถือ</h3>
+    <p>ปุ่มของ Event ซ่อนอยู่หลังปุ่ม <b>▾ ตัวเลือก Event</b> — กดเพื่อเปิด และจะหุบเองหลังกดปุ่มใดปุ่มหนึ่ง</p>
+    <figure class="phone"><a href="assets/guide/08-mobile-event-actions.webp" target="_blank" rel="noopener"><img src="assets/guide/08-mobile-event-actions.webp" alt="ปุ่มตัวเลือก Event บนมือถือ" loading="lazy" /></a><figcaption>หน้า Admin บนมือถือ</figcaption></figure>
+  </section>
+
+  <section id="link">
+    <h2>3. คัดลอกลิงก์ และ QR</h2>
+    <ul>
+      <li><b>คัดลอกลิงก์</b> — ได้ลิงก์หน้าเกมของ Event ที่เลือกอยู่ (ลงท้ายด้วย <i>?event=slug</i>) เอาไปแปะ LINE / โพสต์ได้เลย</li>
+      <li><b>ดาวน์โหลด QR</b> — ได้ไฟล์ PNG ความละเอียดสูง ตั้งชื่อไฟล์ตามชื่อ Event พร้อมพิมพ์ ระบบจะโชว์ลิงก์ปลายทางให้ตรวจก่อนดาวน์โหลด</li>
+    </ul>
+    <div class="warn">ก่อนพิมพ์ QR ให้เช็คว่าช่อง Event เป็นงานที่ถูกต้อง — แต่ละ Event มีลิงก์ของตัวเอง สแกน QR ของงานเก่าจะเข้างานเก่า</div>
+  </section>
+
+  <section id="prizes">
+    <h2>4. ตั้งของรางวัล</h2>
+    <p>เมนู <b>ของรางวัล</b> → การ์ดละหนึ่งรางวัล</p>
+    <figure><a href="assets/guide/03-prize-card.webp" target="_blank" rel="noopener"><img src="assets/guide/03-prize-card.webp" alt="การ์ดของรางวัล" loading="lazy" /></a><figcaption>การ์ดของรางวัล: ชื่อ, จำนวนรวม, ปรับสต็อก, รูป, ไอคอน, สถิติ</figcaption></figure>
+    <ul>
+      <li><b>ชื่อรางวัล</b> — ข้อความบนวงล้อ ยิ่งสั้นยิ่งอ่านง่าย</li>
+      <li><b>จำนวนรวมตั้งแต่เริ่มงาน</b> — ของทั้งหมดที่ใส่เข้าเกมตั้งแต่วันแรก (ไม่ใช่ของที่เหลือ) ของที่เหลือ = จำนวนรวม − ที่แจกไปแล้ว</li>
+      <li><b>โอกาส</b> — คิดจากของที่เหลือ รางวัลที่เหลือเยอะออกบ่อยกว่า ของหมดแล้วจะไม่ออกอีก</li>
+      <li><b>รูปของรางวัล</b> (ไม่บังคับ) — แสดงในหน้าผลรางวัล ส่วนบนวงล้อใช้ไอคอนเสมอ</li>
+      <li><b>+ เพิ่มของรางวัล</b> ได้สูงสุด <b>16 รายการ</b> แนะนำ 6–12 รายการ (มากกว่านั้นวงล้ออ่านยาก)</li>
+    </ul>
+    <div class="tip">แก้ชื่อ / จำนวน / รูป / ไอคอน แล้วต้องกด <b>💾 บันทึก</b> ทุกครั้ง หน้าเกมถึงจะเปลี่ยน (ยกเว้น “ปรับสต็อก” ที่บันทึกให้ทันที)</div>
+  </section>
+
+  <section id="icon">
+    <h2>5. เลือกไอคอนบนวงล้อ</h2>
+    <p>กดปุ่มใต้หัวข้อ <b>ไอคอนบนวงล้อ</b> จะเปิดตารางไอคอนพร้อมชื่อ เลือกอันที่ใกล้ของจริงที่สุด แล้วตารางจะปิดเอง (คลิกข้างนอกหรือกด <kbd>Esc</kbd> เพื่อปิดโดยไม่เลือก)</p>
+    <figure><a href="assets/guide/04-icon-picker.webp" target="_blank" rel="noopener"><img src="assets/guide/04-icon-picker.webp" alt="ตารางเลือกไอคอน" loading="lazy" /></a><figcaption>ตารางไอคอน — สีของแต่ละช่องบนวงล้อระบบจัดให้อัตโนมัติ</figcaption></figure>
+    <p>ไม่เจอไอคอนที่ต้องการ → ใช้ <b>ของขวัญ</b> ไปก่อน แล้วแจ้งผู้ดูแลระบบให้เพิ่ม</p>
+  </section>
+
+  <section id="multiday">
+    <h2>6. งานหลายวัน: เติมของสำหรับวันถัดไป</h2>
+    <p>ใส่ของเฉพาะวันแรกตอนตั้งงาน แล้วเติมของของวันถัดไปทุกเช้า ด้วยปุ่ม <b>± ปรับสต็อก</b> — ใส่แค่ “จำนวนที่จะเติม” ระบบคำนวณจำนวนรวมให้เอง</p>
+    <div class="ex">ตัวอย่าง: ร่ม วันแรกใส่ <b>20</b> → จบวันแจกไป 10 เหลือ 10<br />เช้าวันที่ 2 จะเพิ่มอีก 20 → เลือก <b>เติมของ</b> ใส่ <b>20</b> → ระบบโชว์ “คงเหลือ 10 → 30 ชิ้น (จำนวนรวม 20 → 40)”</div>
+    <ol class="steps">
+      <li>กด <b>± ปรับสต็อก (เติม / หักของ)</b> ในการ์ดของรางวัล</li>
+      <li>เลือก <b>เติมของ</b> แล้วใส่จำนวนชิ้นที่จะเติม</li>
+      <li>ตรวจตัวเลข “คงเหลือ … → …” แล้วกด <b>ยืนยันและบันทึก</b> — บันทึกเข้าเกมทันที</li>
+    </ol>
+    <figure><a href="assets/guide/05-stock-topup.webp" target="_blank" rel="noopener"><img src="assets/guide/05-stock-topup.webp" alt="ปรับสต็อก แบบเติมของ" loading="lazy" /></a><figcaption>เติมของ 20 ชิ้น: คงเหลือ 10 → 30</figcaption></figure>
+    <div class="note">ของที่เหลือจากวันก่อนยกมารวมให้อัตโนมัติ ถ้าไม่อยากให้ยกมา ให้ <b>หักของ</b> ส่วนที่เหลือออกก่อนแล้วค่อยเติม</div>
+  </section>
+
+  <section id="outside">
+    <h2>7. แจกนอกเกม / ของเสีย: หักของ</h2>
+    <p>ถ้าหยิบของจากกองของเกมไปแจกนอกเกม (หรือของชำรุด) ให้หักออก เกมจะได้ไม่สุ่มของที่ไม่มีจริง</p>
+    <div class="ex">ตัวอย่าง: ร่มเหลือ 10 แจกนอกเกมไป 2 → เลือก <b>หักของ</b> ใส่ <b>2</b> → “คงเหลือ 10 → 8 ชิ้น”</div>
+    <figure><a href="assets/guide/06-stock-deduct.webp" target="_blank" rel="noopener"><img src="assets/guide/06-stock-deduct.webp" alt="ปรับสต็อก แบบหักของ" loading="lazy" /></a><figcaption>หักของ 2 ชิ้น: คงเหลือ 10 → 8</figcaption></figure>
+    <p>หักเกินของที่เหลือไม่ได้ — ระบบจะขึ้นตัวแดง “หักได้ไม่เกินของที่เหลือ” และปุ่มยืนยันกดไม่ได้</p>
+  </section>
+
+  <section id="settings">
+    <h2>8. ตั้งค่าทั่วไป และหน้าลงทะเบียน</h2>
+    <h3>ตั้งค่าทั่วไป</h3>
+    <ul>
+      <li><b>ชื่องาน Event</b> — แสดงหัวหน้าเกม</li>
+      <li><b>Logo URL</b></li>
+      <li><b>ปุ่มติดตาม</b> — ข้อความบนปุ่ม และลิงก์ Facebook / LINE ในหน้าผลรางวัล</li>
+      <li><b>การหมุน</b> — จำนวนรอบ และระยะเวลา (ปกติไม่ต้องแก้)</li>
+      <li><b>ข้อความตอนของหมด</b></li>
+    </ul>
+    <h3>หน้าลงทะเบียน</h3>
+    <ul>
+      <li>เปิด/ปิด และบังคับกรอก แต่ละช่อง (ชื่อ, อีเมล, เบอร์โทร ฯลฯ)</li>
+      <li>รายชื่อแบรนด์ให้ติ๊กเลือก</li>
+      <li>ข้อความขอความยินยอม PDPA</li>
+    </ul>
+    <div class="warn">ควรเปิดทั้ง <b>เบอร์โทร</b> และ <b>อีเมล</b> ไว้ ระบบใช้สองช่องนี้กันคนเดิมหมุนซ้ำ ถ้าปิดทั้งคู่จะกันซ้ำไม่ได้</div>
+  </section>
+
+  <section id="player">
+    <h2>9. ผู้ร่วมงานจะเห็นอะไร</h2>
+    <div class="grid2">
+      <figure class="phone"><a href="assets/guide/09-game-form.webp" target="_blank" rel="noopener"><img src="assets/guide/09-game-form.webp" alt="หน้าลงทะเบียน" loading="lazy" /></a><figcaption>① กรอกฟอร์มลงทะเบียน</figcaption></figure>
+      <figure class="phone"><a href="assets/guide/10-game-wheel.webp" target="_blank" rel="noopener"><img src="assets/guide/10-game-wheel.webp" alt="หน้าวงล้อ" loading="lazy" /></a><figcaption>② กดหมุนวงล้อ</figcaption></figure>
+      <figure class="phone"><a href="assets/guide/11-game-result.webp" target="_blank" rel="noopener"><img src="assets/guide/11-game-result.webp" alt="หน้าผลรางวัล" loading="lazy" /></a><figcaption>③ ผลรางวัล — ให้ผู้ร่วมงานโชว์หน้านี้ที่บูธ (มีชื่อและเวลา)</figcaption></figure>
+      <figure class="phone"><a href="assets/guide/12-game-already-played.webp" target="_blank" rel="noopener"><img src="assets/guide/12-game-already-played.webp" alt="หน้าเคยร่วมสนุกแล้ว" loading="lazy" /></a><figcaption>④ คนเดิมมาอีกรอบ — เห็นรางวัลครั้งแรก ไม่ได้สุ่มใหม่</figcaption></figure>
+    </div>
+    <p>ผลรางวัลสุ่มจากเซิร์ฟเวอร์ตามของที่เหลือจริง วงล้อแค่หมุนไปหยุดที่รางวัลนั้น — ผู้ร่วมงานเลือกผลเองไม่ได้</p>
+    <p>หนึ่งคนเล่นได้ <b>1 ครั้งต่อ Event</b> นับจาก <b>เบอร์โทรหรืออีเมล</b> ที่ซ้ำ ถ้าใช้ซ้ำจะเห็นกล่องสีทอง “เบอร์โทร/อีเมลนี้ร่วมสนุกไปแล้ว” (ภาพ ④) และไม่ถูกตัดของเพิ่ม</p>
+  </section>
+
+  <section id="registrations">
+    <h2>10. รายชื่อผู้ลงทะเบียน, Export, ทดสอบซ้ำ</h2>
+    <figure><a href="assets/guide/07-registrations.webp" target="_blank" rel="noopener"><img src="assets/guide/07-registrations.webp" alt="หน้ารายชื่อผู้ลงทะเบียน" loading="lazy" /></a><figcaption>รายชื่อ — อัปเดตเองแบบ real-time (ข้อมูลในภาพเป็นตัวอย่าง)</figcaption></figure>
+    <ul>
+      <li><b>กรองตามวันที่</b> — เลือกช่วงวัน แล้วกด <b>กรอง</b> (งานหลายวันใช้ดูยอดรายวันได้)</li>
+      <li><b>Export Excel</b> — ดาวน์โหลดรายชื่อตามตัวกรองที่ใช้อยู่</li>
+      <li><b>ลบ</b> / <b>ลบที่เลือก</b> — ลบรายชื่อ</li>
+    </ul>
+    <div class="tip"><b>ทีมงานทดสอบเกมก่อนงาน:</b> ถ้าใช้เบอร์/อีเมลเดิมทดสอบซ้ำ เกมจะขึ้น “ร่วมสนุกไปแล้ว” ให้ลบรายชื่อทดสอบนั้นก่อน แล้วค่อยลองใหม่ และก่อนเปิดงานจริงให้ลบรายชื่อทดสอบทั้งหมด (ของที่ถูกสุ่มตอนทดสอบนับเป็น “แจกไปแล้ว” — เติมคืนด้วย <a href="#multiday">ปรับสต็อก → เติมของ</a>)</div>
+  </section>
+
+  <section id="delete">
+    <h2>11. ลบ Event</h2>
+    <p>กด <b>ลบ Event</b> → ถ้ามีผู้ลงทะเบียนอยู่ ระบบจะถามให้ดาวน์โหลด Excel เก็บไว้ก่อน แล้วค่อยยืนยันการลบ</p>
+    <div class="warn">ลบแล้วกู้คืนไม่ได้ — รายชื่อผู้ลงทะเบียนของ Event นั้นหายไปด้วย และลิงก์ / QR ของงานนั้นจะใช้ไม่ได้อีก</div>
+  </section>
+
+  <section id="faq">
+    <h2>12. ปัญหาที่พบบ่อย</h2>
+    <h3>หน้าเกมขึ้น “ไม่พบงานนี้”</h3>
+    <p>ลิงก์ไม่มี <i>?event=…</i> หรือ slug ผิด / Event ถูกลบไปแล้ว → คัดลอกลิงก์ใหม่จาก Admin</p>
+    <h3>หน้าเกมขึ้น “เชื่อมต่อไม่สำเร็จ”</h3>
+    <p>อินเทอร์เน็ตที่บูธมีปัญหา → เช็คสัญญาณ แล้วกดปุ่มโหลดใหม่ในหน้านั้น</p>
+    <h3>แก้ใน Admin แล้วหน้าเกมไม่เปลี่ยน</h3>
+    <p>ลืมกด <b>💾 บันทึก</b> หรือหน้าเกมยังเปิดค้างไว้ก่อนแก้ → บันทึกแล้วรีเฟรชหน้าเกม</p>
+    <h3>เปิดเว็บแล้วยังเป็นหน้าตาเก่า</h3>
+    <p>เบราว์เซอร์จำหน้าเดิมไว้ → บนคอมกด <kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd> (Windows: <kbd>Ctrl</kbd>+<kbd>F5</kbd>) บน iPhone ปิดแท็บแล้วเปิดใหม่</p>
+    <h3>บันทึกไม่ผ่าน “จำนวนต่ำกว่าที่แจกไปแล้ว”</h3>
+    <p>จำนวนรวมต้องไม่น้อยกว่าที่แจกไปแล้ว — ถ้าจะลดของ ใช้ <a href="#outside">ปรับสต็อก → หักของ</a> แทนการแก้ตัวเลขตรงๆ</p>
+  </section>
+</main>
+</body>
+</html>
