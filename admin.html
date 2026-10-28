@@ -915,6 +915,7 @@
 <script src="js/remainingPrizes.js"></script>
 <script src="js/prizeOdds.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="js/fieldAnswers.js"></script>
 <script src="js/exportRows.js"></script>
 <script src="wheelConfig.js"></script>
 <script src="js/prizeImage.js"></script>
@@ -1327,7 +1328,7 @@ function exportRegistrationsToExcel(rowsToExport = regFilteredRows) {
   }
 
   const eventName = document.getElementById('event-select').selectedOptions[0]?.dataset.name || '';
-  const rows = buildExportRows(rowsToExport, eventName);
+  const rows = buildExportRows(rowsToExport, eventName, state.formFields);
 
   const worksheet = XLSX.utils.json_to_sheet(rows);
   const workbook = XLSX.utils.book_new();
