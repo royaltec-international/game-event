@@ -7,6 +7,11 @@ function dashboardViewEsc(value) {
     .replace(/'/g, '&#39;');
 }
 
+// node tests load this file directly; browsers get these as earlier classic scripts.
+const dashboardReportWorkbook = typeof require === 'function' ? require('./reportWorkbook.js') : globalThis;
+const dashboardReportRows = typeof require === 'function' ? require('./exportRows.js') : globalThis;
+const dashboardReportStats = typeof require === 'function' ? require('./dashboardStats.js') : globalThis;
+
 function dashboardViewNumber(value) {
   const number = Number(value);
   return Number.isFinite(number) ? number : 0;
@@ -267,7 +272,7 @@ var DashboardView = (function dashboardViewModule() {
     root.innerHTML = `<div class="dash-shell dash-year-shell">
       <div class="dash-toolbar dash-year-toolbar">
         <label class="dash-year-picker"><span>ภาพรวมปี</span><select id="dashboard-year-select">${yearOptions}</select></label>
-        <div class="dash-live">${dashboardStatusHtml()}<button type="button" class="btn btn-outline btn-sm" data-dash-action="refresh-year">↻ รีเฟรช</button><button type="button" class="btn btn-primary btn-sm" disabled title="เพิ่มใน Task รายงาน">Export ภาพรวมปี ${dashboardViewEsc(dashboardState.year)}</button></div>
+        <div class="dash-live">${dashboardStatusHtml()}<button type="button" class="btn btn-outline btn-sm" data-dash-action="refresh-year">↻ รีเฟรช</button><button type="button" class="btn btn-primary btn-sm" data-dash-action="export-year">Export ภาพรวมปี ${dashboardViewEsc(dashboardState.year)}</button></div>
       </div>
       <div class="dash-kpis dash-year-kpis">${kpis}</div>
       <div class="dash-year-grid">
@@ -484,7 +489,7 @@ var DashboardView = (function dashboardViewModule() {
           <div>${dashboardRenderBrands(stats, comparison, event.name, otherData && otherData.event.name)}${dashboardRenderMatchedPrizes(comparison, event.name, otherData && otherData.event.name)}${dashboardRenderCost(stats)}</div>
           <div>${dashboardRenderChoices(stats, event.id, comparison, event.name, otherData && otherData.event.name)}</div>
         </div>
-        <div class="dash-export-row"><button type="button" class="btn btn-primary" disabled title="เพิ่มใน Task รายงาน">Export รายงานงานนี้ (.xlsx)</button></div>
+        <div class="dash-export-row"><button type="button" class="btn btn-primary" data-dash-action="export-event">Export รายงานงานนี้ (.xlsx)</button></div>
       </div>
     </div>`;
   }
@@ -736,11 +741,52 @@ var DashboardView = (function dashboardViewModule() {
     dashboardRefresh(true);
   }
 
+  function dashboardExportWorkbook(sheets, baseName) {
+    // Sheets are closed over from dashboardState data already fetched for the view.
+    if (typeof XLSX === 'undefined') {
+      toast('ยังไม่มี SheetJS โหลด', 'err');
+      return;
+    }
+    const workbook = XLSX.utils.book_new();
+    sheets.forEach(sheet => {
+      XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(sheet.rows), sheet.name);
+    });
+    XLSX.writeFile(workbook, dashboardReportWorkbook.reportFilename(baseName, new Date().toISOString()));
+  }
+
+  function dashboardExportEvent() {
+    const data = dashboardState.data;
+    if (!data || !data.event) return;
+    const event = data.event;
+    const stats = data.stats;
+    const formFields = Array.isArray(event.config && event.config.formFields) ? event.config.formFields : [];
+    const registrationRows = dashboardReportRows.buildExportRows(data.registrations, event.name, formFields);
+    const compare = dashboardState.compareData ? dashboardReportStats.compareStats(stats, dashboardState.compareData.stats) : null;
+    dashboardExportWorkbook(dashboardReportWorkbook.eventReportSheets(stats, registrationRows, compare), event.name);
+  }
+
+  function dashboardExportYear() {
+    const data = dashboardState.yearData;
+    if (!data) return;
+    const rows = [];
+    Object.entries(data.registrationsByEvent || {}).forEach(([eventId, registrations]) => {
+      const event = dashboardState.events.find(candidate => String(candidate.id) === String(eventId));
+      if (!event) return;
+      const formFields = Array.isArray(event.config && event.config.formFields) ? event.config.formFields : [];
+      rows.push(...dashboardReportRows.buildExportRows(registrations, event.name, formFields));
+    });
+    dashboardExportWorkbook(dashboardReportWorkbook.yearReportSheets({ ...data.stats, year: data.year }, rows), `ภาพรวมปี-${data.year}`);
+  }
+
   function dashboardHandleClick(event) {
     const target = event.target.closest('[data-dash-action]');
     if (!target) return;
     const action = target.dataset.dashAction;
-    if (action === 'refresh') {
+    if (action === 'export-event') {
+      dashboardExportEvent();
+    } else if (action === 'export-year') {
+      dashboardExportYear();
+    } else if (action === 'refresh') {
       dashboardRefresh(true);
     } else if (action === 'refresh-year') {
       dashboardState.requestId += 1;

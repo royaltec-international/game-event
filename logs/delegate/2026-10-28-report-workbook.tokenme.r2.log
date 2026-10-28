@@ -1,0 +1,32 @@
+Permission allow rule (.claude/settings.local.json): Bash(/usr/bin/grep -n "prize-form\\|prizeLabel\\|prize-label\\|function.*[Pp]rize\\|editPrize\\|savePrize\\|addPrize\\|deletePrize\\|renderPrizes" admin.html) has a wildcard before the rest of the command, so it also matches any options inserted at that position and approves them without a prompt. Replace that * with the exact value you mean, or only use * after the subcommand.
+All done. Here's the final report.
+
+## Report — Task 9: Report workbook export
+
+### Files changed
+- **`js/reportWorkbook.js`** (new) — pure sheet-builder module:
+  - `eventReportSheets(stats, registrationRows, compare|null)` → sheets in order `สรุป, ของแจก, แบรนด์, สรุปคำตอบ, รายชั่วโมง, ผู้ลงทะเบียน` (+ `เปรียบเทียบ` last when compare given; `แบรนด์` omitted when `stats.brands` null).
+  - `yearReportSheets(yearStats, registrationRows)` → `สรุปปี, งาน, แบรนด์รวม, รายเดือน, ผู้ลงทะเบียน` (year accepted via the added `year` field).
+  - `reportFilename(name, dateIso)` — strips `\/:*?"<>|`, collapses spaces to `-`, appends `-YYYY-MM-DD.xlsx`; `'Expo: 2026/Q4'` + `'2026-10-28T10:00:00Z'` → `'Expo-2026Q4-2026-10-28.xlsx'`.
+  - Cost cells: unknown → `'ไม่ทราบ'`, vendor → `'vendor (0)'`; `สรุป` includes the coverage note (`มีราคาครบ N/M รายการที่แจก` + `⚠ อาจต่ำกว่าจริง · <names> ยังไม่มีราคา` when incomplete). All sheet names well under 31 chars. Exported via the classic-script guard.
+- **`js/reportWorkbook.test.js`** (new) — 6 tests: sheet order/names, omitted brands sheet, compare sheet present (last), year sheet names + pass-through of registrant `Event Name`, filename sanitising, and cost-cell/vendor/unknown assertions.
+- **`admin.html`** — added `<script src="js/reportWorkbook.js"></script>` immediately after the `js/dashboardView.js` tag (line 1102).
+- **`js/dashboardView.js`** — replaced both disabled Export buttons with `data-dash-action="export-event"` (event detail) and `data-dash-action="export-year"` (year view); added the two action cases in `dashboardHandleClick` wired to `dashboardExportEvent()` / `dashboardExportYear()`, which build sheets from already-loaded `dashboardState.data` / `dashboardState.yearData` (registrant rows via `buildExportRows(registrations, event.name, formFields)`; year rows get the `Event Name` column), then append each sheet with `XLSX.utils.json_to_sheet` + `XLSX.utils.book_append_sheet` and `XLSX.writeFile(wb, reportFilename(...))`. Uses the namespaced guard pattern (`typeof require === 'function' ? require(...) : globalThis`) per the shared-scope rule — no new top-level name collisions (verified by grep).
+
+### Verify command output
+```
+node --test js/
+ℹ tests 136
+ℹ pass 136
+ℹ fail 0
+```
+(131 pre-existing + 6 new; all pass. The Docker `supabase/tests/run.sh` part is skipped per instructions.)
+
+Also sanity-checked by loading the classic scripts into one `vm` context (shared global scope) and confirming `eventReportSheets`/`yearReportSheets`/`reportFilename` resolve and produce the right names.
+
+### Notes / anything unsure
+- `yearStats()` itself doesn't return a `year`, so `dashboardExportYear()` passes `{...data.stats, year: data.year}` so the `สรุปปี` sheet shows the year; the contract says `yearReportSheets(yearStats, ...)` only requires the `yearStats` result shape, and adding a `year` here didn't change existing tests.
+- The `รายชั่วโมง` sheet lists all 24 hours × each Bangkok day (matching the dashboard's `hourly` shape of 24-length arrays); one dashboard test day yields 24 rows, which is what my new test asserts.
+- The `เปรียบเทียบ` sheet condenses KPI/brand/prize comparisons into a single sheet (per the plan's "+ เปรียบเทียบ when compare given" interface); formatting stayed simple (raw values + `ต่าง %`).
+- Cost `ต้นทุนรวม` in `ของแจก` reuses the same `vendor/unknown/known` cell formatting as `ต้นทุน/ชิ้น` for consistency.
+- No changes to `draw_prize`, spin maths, or `supabase/schema.sql`.
