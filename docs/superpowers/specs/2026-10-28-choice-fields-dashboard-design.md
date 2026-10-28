@@ -141,7 +141,7 @@ Breadcrumb `ภาพรวมปี 2026 › <event>`; event dropdown (events o
   Checkbox: same base + multi-answer note. "อื่นๆ" counted as one bucket; the typed text is not shown
   on the dashboard (export only). Answers matching no current option are grouped under "อื่นๆ".
   Base fields (name, phone, email, company, position) are never summarised.
-- "ติดต่อต่อได้" counts `pdpa_consent = 'true'`. Events whose rows are all `'N/A'` (PDPA section off)
+- "ติดต่อต่อได้" counts `pdpa_consent = 'YES'` (what `js/drawPayload.js` stores; legacy `'true'` also counts). Events whose rows are all `'N/A'` (PDPA section off)
   show "ไม่ได้เปิด PDPA" instead of a number and are excluded from contactable totals/costs.
 - **Hourly registrations**: per-day tabs (one per date that has registrations) + "รวมทุกวัน";
   hours with zero shown as empty bars; peak hour labelled.
@@ -172,7 +172,7 @@ Button **"⇄ เปรียบเทียบกับ…"** → pick another 
 - Event cost = Σ known (`prizes.used` × unit_cost). Only prizes given out count, not stock.
   `prizes.used` is the source of truth for "ได้ของ" and cost (it is what physically left the booth,
   and survives registration deletes); "ลงทะเบียนแต่ของหมด" counts registrations with `prize_id = ''`.
-- Cost per lead = event cost ÷ registrations; per contactable lead = ÷ PDPA-true registrations.
+- Cost per lead = event cost ÷ registrations; per contactable lead = ÷ PDPA-consented registrations.
 - Coverage = given-out prizes with known cost / given-out prizes. If < 100%: amber "อาจต่ำกว่าจริง ·
   <prize names> ยังไม่มีราคา". Incomplete events get ⚠ in the year table and compare view.
 - Year cost per lead = Σ cost ÷ Σ registrations over all events, with the same coverage flag.
