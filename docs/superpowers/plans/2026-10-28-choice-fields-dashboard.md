@@ -92,7 +92,7 @@ M5 (9) → QA (10).
   - `validateFieldConfig(field) → string|null` — choice type with 0 non-blank options → `'กรุณาเพิ่มตัวเลือกอย่างน้อย 1 ข้อ'`; `allowOther` and an option equal (trimmed) to `OTHER` → `'ตัวเลือก "อื่นๆ" ใช้ไม่ได้ เมื่อเปิดตัวเลือกอื่นๆ (โปรดระบุ)'`; duplicate options → `'ตัวเลือกซ้ำกัน'`; else null
   - `validateAnswer(field, value: string|string[], other: string) → string|null` — required checkbox with `[]` → `'กรุณาเลือกอย่างน้อย 1 ข้อ'`; required radio/dropdown with `''` → `'กรุณาเลือก'`; value includes/equals `OTHER` and other trimmed empty → `'กรุณาระบุ'`; else null
   - `buildCustomFields(fields, read: (field) => {value, other}) → object` — non-base enabled fields only (base keys `firstName,lastName,email,phone,company,position`); key by `field.key`; adds `<key>__other` only when OTHER chosen and text non-empty
-  - `buildExportRows(registrations, eventName, formFields = [])` (in `js/exportRows.js`) — after the existing base columns, one column per non-base field in `formFields` order titled by current `label`, value `formatAnswer`; then any remaining `custom_fields` keys not consumed by a field (and not ending `__other`) spread as before (legacy behaviour).
+  - `buildExportRows(registrations, eventName, formFields = [])` (in `js/exportRows.js`) — after the existing base columns, one column per non-base field in `formFields` order titled by current `label`, value `formatAnswer`; then any remaining `custom_fields` keys not consumed by a field (and not ending `__other`) spread as before (legacy behaviour; array values joined `', '`). `exportRows.js` gets `formatAnswer` via `const { formatAnswer } = typeof require === 'function' ? require('./fieldAnswers.js') : globalThis;` style guard (browser: global from the earlier script tag).
 - [ ] Step 1: write `js/fieldAnswers.test.js` covering every function above, including: key lookup wins over label; label fallback for `{ 'แผนก': 'IT' }` with field `{key:'custom_1', label:'แผนก'}`; `formatAnswer` of `['A','อื่นๆ']` + other `'X'` → `'A, อื่นๆ: X'`; each `validateFieldConfig` message; `buildCustomFields` ignores base and disabled fields.
 - [ ] Step 2: extend `js/exportRows.test.js`: new-format row with formFields gives column `'ประเภทธุรกิจ'` = `'โรงงาน'`; legacy test `'แผนก'` still passes with no formFields; no `custom_x__other` column ever.
 - [ ] Step 3: run `node --test js/` → new tests FAIL.
@@ -119,7 +119,7 @@ M5 (9) → QA (10).
   toggle "มีตัวเลือก อื่นๆ (โปรดระบุ)" (`allowOther`); hide Placeholder for checkbox/radio. New
   handlers `setFFOption(i, j, val)`, `moveFFOption(i, j, dir)`, `removeFFOption(i, j)`,
   `addFFOption(i)`; switching type to a choice type initialises `options: ['ตัวเลือก 1']`,
-  `allowOther: false`. In `saveToServer()` before writing: run `validateFieldConfig` on each enabled
+  `allowOther: false`. `setFF(i,'type',…)` currently does not re-render — on a type change initialise options as above and call `renderFormFields()`. In `saveToServer()` before writing: run `validateFieldConfig` on each enabled
   custom field; first error → `toast('<label>: <msg>', 'err')` and abort the save (button re-enabled).
   Show a one-line hint under the type select when an existing field with registrations changes type:
   "คำตอบเก่ายังอยู่ แต่ dashboard จะนับตามตัวเลือกใหม่".
@@ -149,11 +149,14 @@ M5 (9) → QA (10).
   checking vendor disables + clears the price input. Invalid price (`NaN`) → field error text
   "ใส่ตัวเลข 0 ขึ้นไป" and block save. In `loadFromServer()` fetch
   `prize_costs` (`select('prize_id, unit_cost, vendor_sponsored').eq('event_id', id)`) and set
-  `state.prizes[i].unitCost` / `vendorSponsored`. In `saveToServer()` write
+  `state.prizes[i].unitCost` / `vendorSponsored`. This fetch must **never throw** inside
+  `loadFromServer`'s try (its catch resets `state.prizes` to defaults and the next save would delete
+  real prizes via `syncPrizesTable`): check `{ error }`, on error leave cost fields unset and
+  `toast('โหลดราคาของรางวัลไม่สำเร็จ', 'err')`. In `saveToServer()` write
   `prizes: stripPrivatePrizeFields(state.prizes)` into config, and after `syncPrizesTable` succeeds
   upsert `prizeCostRows(...)` into `prize_costs` (`onConflict: 'prize_id,event_id'`); on error toast
   "บันทึกราคาไม่สำเร็จ" (config save still counts).
-- Accept: after save, `events.config.prizes[*]` has no `unitCost`/`vendorSponsored`; reload shows saved values.
+- Accept: after save, `events.config.prizes[*]` has no `unitCost`/`vendorSponsored`; reload shows saved values; a `prize_costs` error does not change `state.prizes`.
 - **Verify:** `node --test js/ && grep -q "stripPrivatePrizeFields(state.prizes)" admin.html && grep -q "from('prize_costs')" admin.html`
 
 ### Task 6: Event statistics module
@@ -167,11 +170,11 @@ M5 (9) → QA (10).
   - `isLowStock(p) → boolean` (Global Constraints rule)
   - `prizeRows(prizes, costsById) → [{id,label,quantity,used,remaining,low,costStatus,unitCost,cost}]` sorted by remaining asc, then label
   - `costSummary(prizeRows, leads, contactable|null) → {total, perLead|null, perContactable|null, coverage:{known,given}, missing:string[]}` — only rows with `used > 0` count toward coverage
-  - `brandSummary(registrations, brandItems) → {rows:[{name,count,pct}], anyPct, avgPerPerson, base}` — split on `', '`, match trimmed to `brandItems`, unmatched kept as own names; pct = count/base·100; base = registrations.length
+  - `brandSummary(registrations, brandItems) → {rows:[{name,count,pct}], anyPct, avgPerPerson, base}` — split on `', '`, match trimmed to `brandItems`; strings not in `brandItems` go into one `OTHER` row (anyone can call `draw_prize`, so free text must not create bars); pct = count/base·100; base = registrations.length
   - `choiceSummary(registrations, field) → {type, rows:[{option,count,pct}], answered, unanswered, multi:boolean}` — answers not in `field.options` count as `OTHER`; pct base = answered
   - `hourly(registrations) → {days:[date], byDay:{[date]: number[24]}, total:number[24], peak:{hour,count}|null}`
   - `eventStats({event, registrations, prizes, costs, priorContactKeys:Set}) → {leads, contactable|null, pdpaOff:boolean, newCount|null, returningCount|null, given, soldOut, lowCount, prizes, cost, brands|null, choices:[...], hourly}` — `contactable` = rows with `pdpa_consent` in `('YES','true')`; `pdpaOff` when every row is `'N/A'` (or no rows and `config.pdpa.enabled` false) → contactable null; `given` = Σ `prizes.used`; `soldOut` = rows with `prize_id === ''`; new/returning null when phone and email fields are both disabled in `event.config.formFields`; choices only for enabled choice fields.
-- [ ] Tests first: the five Review Focus cases relevant here (legacy label answers, PDPA off, empty event → no NaN, Bangkok midnight, low stock at quantity 10 remaining 1 / quantity 100 remaining 6 vs 11), plus cost with one unknown prize → `missing` lists its label and `coverage` 1/2, vendor prize counts as known 0.
+- [ ] Tests first: the five Review Focus cases relevant here (legacy label answers, PDPA off, empty event → no NaN, Bangkok midnight, low stock at quantity 10 remaining 1 / quantity 100 remaining 6 vs 11), plus brands `'A, hacked'` with items `['A','B']` → rows A=1, B=0, อื่นๆ=1, plus cost with one unknown prize → `missing` lists its label and `coverage` 1/2, vendor prize counts as known 0.
 - **Verify:** `node --test js/`
 
 ### Task 7: Dashboard panel — event detail + mobile view
@@ -188,8 +191,11 @@ M5 (9) → QA (10).
   brands, choice summaries with chip toggles (hidden set in `localStorage['dash-hidden-'+eventId]`,
   wrapped in try/catch), hourly with per-day tabs + "รวมทุกวัน", cost line with amber
   "อาจต่ำกว่าจริง · <names> ยังไม่มีราคา" when coverage incomplete. Prior contacts: fetch
-  `registrations.select('event_id, phone, email')` for events created before this one (paginated
-  1000) → `Set` of `contactKeys`. Mobile (≤ 640px) per spec B6: alert banner, 2 KPIs, prize list,
+  `registrations.select('event_id, phone, email, created_at')` for events created before this one,
+  paginated 1000 with `.order('created_at').order('id')` like `fetchAllRegistrations` → `Set` of
+  `contactKeys`. The dashboard loads its own event list `events.select('id,name,slug,created_at,config')`
+  and keeps its own `dash` state (event id, data); it must **not** call `selectEvent()` or touch
+  `state.prizes` / `state.formFields` / the editor's current event. Mobile (≤ 640px) per spec B6: alert banner, 2 KPIs, prize list,
   small hourly, "ดูเพิ่ม" toggle for the rest; default event = event of the most recent registration
   (`order created_at desc limit 1`), fallback newest event. Auto-refresh every 30 s while the
   dashboard panel is active and `document.visibilityState === 'visible'`; "↻ รีเฟรช" button; status
@@ -202,7 +208,7 @@ M5 (9) → QA (10).
 - **Interfaces — Produces** (`js/dashboardStats.js`):
   - `eventsInYear(events, year) → events` by `bangkokParts(created_at).year`, sorted by first-registration date
   - `yearStats({events, registrationsByEvent, prizesByEvent, costsByEvent}) → {leads, uniqueContacts, contactable, eventCount, cost:{total, perLead|null, complete:boolean}, table:[{eventId,name,firstDate,leads,contactable,given,perLead,costComplete}], brandsTop5, monthly:number[12]}` — monthly by registration date within the year's events
-  - `compareStats(a: eventStats, b: eventStats) → {kpis:[{key,a,b,deltaPct|null}], brands:[{name,a,b}], prizesByLabel:[{label,a,b}], choices:[{label, rows:[{option,a,b}]}], hourly:{a:number[24], b:number[24]}}` — prizes/choices matched by trimmed label, duplicate labels summed; deltaPct null when b is 0 or null
+  - `compareStats(a: eventStats, b: eventStats) → {kpis:[{key,a,b,deltaPct|null}], brands:[{name,a,b}], prizesByLabel:[{label,a,b}], choices:[{label, rows:[{option,a,b}]}], hourly:{a:number[24], b:number[24]}}` — prizes/choices matched by trimmed label, duplicate labels summed; deltaPct null when b is 0 or null; also `costComplete:{a:boolean,b:boolean}` so the UI can show ⚠
 - UI: year view is the default desktop landing (spec B1, mockup ①): year `<select>`, KPIs, event table (row click → event detail), brands Top 5, monthly 12 bars. Compare (spec B3, mockup ②b), desktop only (hidden ≤ 640px): "⇄ เปรียบเทียบกับ…" opens an event `<select>`; KPIs show `ปีก่อน`-style sub text "<other name>: N ▲/▼ x%"; paired brand bars; hourly overlay (dashed line, `hourlyChart(a, b)`); "✕ เลิกเทียบ".
 - [ ] Tests first for `eventsInYear`, `yearStats` (unique contacts across two events sharing a phone = 1; incomplete cost flag), `compareStats` (delta, b=0 → null, label matching).
 - **Verify:** `node --test js/`
