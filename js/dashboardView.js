@@ -290,7 +290,7 @@ var DashboardView = (function dashboardViewModule() {
       prize.quantity,
       `${prize.low ? '⚠ ' : ''}เหลือ ${dashboardFormatInteger(prize.remaining)}/${dashboardFormatInteger(prize.quantity)}`,
       { warn: prize.low }
-    )).join('')}<p class="dash-note">แถบ = แจกแล้ว · ใกล้หมด = เหลือ ≤10% หรือ ≤5 ชิ้น</p></div>`;
+    )).join('')}<p class="dash-note">แถบ = แจกแล้ว · ใกล้หมด = เหลือ ≤20% (อย่างน้อย 1 ชิ้น)</p></div>`;
   }
 
   function dashboardRenderBrands(stats, comparison, currentName, otherName) {
@@ -839,6 +839,9 @@ var DashboardView = (function dashboardViewModule() {
         showLoading(false);
       }
     } else {
+      // Prices/stock may have been edited in another panel — drop cached years
+      // (the current yearData stays on screen while it reloads)
+      dashboardState.yearCache.clear();
       if (dashboardState.view === 'year') dashboardLoadYear(dashboardState.year, false);
       else dashboardRefresh(false);
     }

@@ -49,7 +49,15 @@ test('normalises valid phone and email contact keys', () => {
 test('marks low stock at either the ten-percent or five-item boundary', () => {
   assert.equal(isLowStock({ quantity: 10, remaining: 1 }), true);
   assert.equal(isLowStock({ quantity: 100, remaining: 6 }), true);
-  assert.equal(isLowStock({ quantity: 100, remaining: 11 }), false);
+  assert.equal(isLowStock({ quantity: 100, remaining: 20 }), true);
+  assert.equal(isLowStock({ quantity: 100, remaining: 21 }), false);
+  // Small stock: untouched 3 or 5 pieces is not "low"; the last piece is
+  assert.equal(isLowStock({ quantity: 3, remaining: 3 }), false);
+  assert.equal(isLowStock({ quantity: 3, remaining: 2 }), false);
+  assert.equal(isLowStock({ quantity: 3, remaining: 1 }), true);
+  assert.equal(isLowStock({ quantity: 5, remaining: 5 }), false);
+  assert.equal(isLowStock({ quantity: 30, remaining: 6 }), true);
+  assert.equal(isLowStock({ quantity: 30, remaining: 7 }), false);
   assert.equal(isLowStock({ quantity: 0, remaining: 0 }), false);
 });
 

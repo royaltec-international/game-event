@@ -87,3 +87,38 @@ test('compare KPI subtext includes direction, percentage, and cost warning', () 
   assert.equal(compareKpiSub('Expo 2025', 0, null, false), 'Expo 2025: 0');
   assert.equal(compareKpiSub('Expo 2025', 100, -5, false), 'Expo 2025: 100 ▼ 5%');
 });
+
+test('re-opening the dashboard refetches the year overview so prices saved meanwhile show up', async () => {
+  let costFetches = 0;
+  function query(table) {
+    const result = {
+      events: { data: [{ id: 'e1', name: 'Expo', slug: 'expo', created_at: '2026-10-01T00:00:00Z', config: {} }], error: null },
+      registrations: { data: [], error: null },
+      prizes: { data: [], error: null },
+      prize_costs: { data: [], error: null },
+    }[table];
+    if (table === 'prize_costs') costFetches += 1;
+    const builder = {
+      select: () => builder, eq: () => builder, in: () => builder, order: () => builder,
+      limit: () => builder, range: () => builder,
+      then: (resolve, reject) => Promise.resolve(result).then(resolve, reject),
+    };
+    return builder;
+  }
+  const context = vm.createContext({
+    console,
+    supabase: { from: query },
+    fetchAllRegistrations: async () => [],
+    showLoading: () => {},
+    toast: () => {},
+  });
+  ['fieldAnswers.js', 'prizeCost.js', 'dashboardStats.js', 'dashboardView.js'].forEach(file => {
+    vm.runInContext(fs.readFileSync(require.resolve(`./${file}`), 'utf8'), context);
+  });
+
+  await vm.runInContext('DashboardView.activate()', context);
+  assert.equal(costFetches, 1);
+  vm.runInContext('DashboardView.deactivate()', context);
+  await vm.runInContext('DashboardView.activate()', context);
+  assert.equal(costFetches, 2);
+});

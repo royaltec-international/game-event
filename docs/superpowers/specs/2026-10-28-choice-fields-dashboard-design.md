@@ -131,7 +131,7 @@ Breadcrumb `ภาพรวมปี 2026 › <event>`; event dropdown (events o
 - KPIs: ลงทะเบียน · ติดต่อต่อได้ (PDPA) · คนใหม่ / เคยมางานเราแล้ว · ได้ของ (ชิ้น) ·
   ลงทะเบียนแต่ของหมด (prize_id = '') · รายการใกล้หมด · ต้นทุนต่อ lead · ต้นทุนต่อ lead ที่ติดต่อได้.
 - **Prizes**: one row per prize sorted by remaining ascending; label "เหลือ N/Q"; low stock =
-  remaining ≤ 10% of quantity **or** ≤ 5 → amber bar + "⚠" + text (not colour alone).
+  remaining ≤ max(1, floor(20% of quantity)) (owner change 2026-10-28: 3-piece stock warned before any was given) → amber bar + "⚠" + text (not colour alone).
 - **Brands** (if the event has brands enabled): people per brand sorted desc, "N คน (x%)", base =
   registrants, note "เลือกได้หลายข้อ รวมเกิน 100%". Brands string split on ", " and matched to the
   event's brand list.
@@ -234,7 +234,7 @@ The existing per-event export on the registrations page stays as is.
 - Prize costs in a separate admin-only table so the public game page never sees them.
 - `prizes.used` drives given-out counts and cost; events grouped by creation year.
 - Returning-visitor detection loads contact columns of all registrations client-side.
-- Low-stock threshold ≤10% or ≤5; mobile has no compare; field visibility saved in localStorage.
+- Low-stock threshold ≤20%, min 1; mobile has no compare; field visibility saved in localStorage.
 - Answers not matching a current option count as "อื่นๆ".
 - No chart library — CSS bars + inline SVG.
 

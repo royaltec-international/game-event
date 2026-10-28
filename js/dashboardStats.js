@@ -54,7 +54,8 @@ function contactKeys(registration) {
 function isLowStock(prize) {
   const quantity = dashboardNumber(prize && prize.quantity);
   const remaining = dashboardNumber(prize && prize.remaining);
-  return quantity > 0 && (remaining <= quantity * 0.1 || remaining <= 5);
+  // ≤20% of the starting stock, at least 1 — small stocks (3, 5 pieces) only warn on the last piece
+  return quantity > 0 && remaining <= Math.max(1, Math.floor(quantity * 0.2));
 }
 
 function dashboardCostFor(costsById, prizeId) {
