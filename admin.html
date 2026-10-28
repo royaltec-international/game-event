@@ -335,6 +335,19 @@
     .photo-row label .prize-image-field-caption { display: inline; margin: 0 0 0 6px; font-weight: 400; }
     .photo-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
     .photo-controls .prize-image-filename { margin: 0; }
+    .cost-box {
+      margin-top: 14px; padding: 14px 16px; border-radius: var(--radius-sm);
+      background: var(--surface2); border: 1px solid var(--border);
+    }
+    .cost-box-head {
+      display: flex; align-items: center; justify-content: space-between; gap: 8px;
+      margin-bottom: 10px;
+    }
+    .cost-box-body { display: flex; align-items: flex-end; gap: 12px 24px; flex-wrap: wrap; }
+    .cost-total { flex: 0 1 240px; }
+    .cost-field-error {
+      color: var(--danger); font-size: 13px; margin-top: 4px; align-self: center;
+    }
     .stock-adjust[hidden] { display: none; }
     .stock-adjust-modes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     .stock-mode {
@@ -950,6 +963,7 @@
 <script src="js/prizeOdds.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="js/fieldAnswers.js"></script>
+<script src="js/prizeCost.js"></script>
 <script src="js/exportRows.js"></script>
 <script src="wheelConfig.js"></script>
 <script src="js/prizeImage.js"></script>
@@ -1511,7 +1525,29 @@ async function loadFromServer() {
     
     // Load given-out counts (remaining = quantity - used, computed live while editing)
     state.used = (await getPrizeUsage()) || {};
-    
+
+    // Load admin-only per-prize costs (already applied from config defaults above).
+    // Deliberately never throws: the try's catch resets state.prizes to fallback
+    // defaults, and the next save would then delete the real prizes via
+    // syncPrizesTable. On error keep the unset/whatever values loaded so a save
+    // stays harmless.
+    const { data: costRows, error: costError } = await supabase
+      .from('prize_costs')
+      .select('prize_id, unit_cost, vendor_sponsored')
+      .eq('event_id', state.currentEventId);
+    if (costError) {
+      console.error('Error loading prize_costs:', costError);
+      toast('โหลดราคาของรางวัลไม่สำเร็จ', 'err');
+    } else {
+      const costByPrizeId = new Map((costRows || []).map(r => [r.prize_id, r]));
+      state.prizes.forEach(p => {
+        const c = costByPrizeId.get(p.id);
+        if (!c) return;
+        p.unitCost = (c.unit_cost === null || c.unit_cost === undefined) ? null : Number(c.unit_cost);
+        p.vendorSponsored = Boolean(c.vendor_sponsored);
+      });
+    }
+
     renderPrizes();
     loadGeneral();
     setSyncStatus('success', 'เชื่อมต่อแล้ว');
@@ -1569,7 +1605,7 @@ async function saveToServer() {
     
     const config = {
       eventName:      state.eventName || 'Default Event',
-      prizes:         state.prizes,
+      prizes:         stripPrivatePrizeFields(state.prizes),
       formFields:     state.formFields,
       brandsCheckbox: state.brandsCheckbox,
       pdpa:           state.pdpa,
@@ -1605,6 +1641,21 @@ async function saveToServer() {
       return;
     }
 
+    // Invalid/empty-but-typed price blocks the save (the price input shows the
+    // per-field error); the DB also rejects negatives, so refuse before writing.
+    const invalidCost = state.prizes.find(p => Number.isNaN(p.unitCost) && p.vendorSponsored !== true);
+    if (invalidCost) {
+      const errEl = document.getElementById('cost-error-' + state.prizes.indexOf(invalidCost));
+      if (errEl) {
+        errEl.textContent = 'ใส่ตัวเลข 0 ขึ้นไป';
+        errEl.classList.add('is-error');
+      }
+      setSyncStatus('error', 'ราคา/ชิ้นไม่ครบ');
+      toast(`ราคา/ชิ้นของรางวัล "${invalidCost.label || 'รางวัล #' + (state.prizes.indexOf(invalidCost) + 1)}" ไม่ถูกต้อง — ใส่ตัวเลข 0 ขึ้นไป (เว้นว่าง = ไม่ระบุราคา)`, 'err');
+      btn.disabled = false;
+      return;
+    }
+
     const success = await saveConfigToServer(state.currentEventId, config);
 
     if (success) {
@@ -1612,6 +1663,17 @@ async function saveToServer() {
       if (!prizesSynced) {
         throw new Error('Prize table sync failed after config save');
       }
+
+      // Config save counts even if the cost write fails — rebuild the whole
+      // cost map for this event with onConflict so edited/stale rows don't linger.
+      const { error: costErr } = await supabase
+        .from('prize_costs')
+        .upsert(prizeCostRows(state.currentEventId, state.prizes), { onConflict: 'prize_id,event_id' });
+      if (costErr) {
+        console.error('Error saving prize_costs:', costErr);
+        toast('บันทึกราคาไม่สำเร็จ', 'err');
+      }
+
       setSyncStatus('success', 'บันทึกสำเร็จ');
       toast('บันทึกไปยัง Supabase แล้ว', 'ok');
       // Reload given-out counts to update stock
@@ -1690,6 +1752,11 @@ function renderPrizes() {
     const card = document.createElement('div');
     card.className = 'prize-card';
     const selectedIcon = iconNameFor(p);
+    const costInputValue = (() => {
+      if (p.vendorSponsored) return '';
+      const parsed = parseCostInput(p.unitCost);
+      return parsed === null ? '' : String(parsed);
+    })();
     const iconButtons = Object.keys(PRIZE_ICONS).map(name => {
       const label = PRIZE_ICON_LABELS[name];
       return `<button type="button" class="icon-picker-btn" title="${label}"
@@ -1768,6 +1835,27 @@ function renderPrizes() {
             <button type="button" class="btn btn-outline btn-sm" onclick="toggleStockAdjust(${i})">ยกเลิก</button>
           </div>
           <div class="stock-preview" id="stock-preview-${i}" aria-live="polite">คงเหลือตอนนี้ ${remaining} ชิ้น — ใส่จำนวนชิ้นที่จะเติมหรือหัก</div>
+        </div>
+      </div>
+
+      <div class="cost-box">
+        <div class="cost-box-head">
+          <span class="section-label">ราคา/ชิ้น</span>
+        </div>
+        <div class="cost-box-body">
+          <div class="form-group cost-total">
+            <label for="cost-${i}">ราคา/ชิ้น (บาท)</label>
+            <input id="cost-${i}" type="text" inputmode="decimal" autocomplete="off"
+              placeholder="เช่น 1,250" value="${esc(costInputValue)}"
+              ${p.vendorSponsored ? 'disabled' : ''}
+              oninput="setPrizeCost(${i},this)" aria-label="ราคาต่อชิ้น (บาท)" />
+          </div>
+          <label class="field-allow-other" style="min-height:36px;flex:1 1 240px;margin-bottom:6px;">
+            <input type="checkbox" ${p.vendorSponsored ? 'checked' : ''}
+              onchange="setPrizeVendor(${i},this.checked)" />
+            <span>vendor สนับสนุน (ฟรี)</span>
+          </label>
+          <div class="cost-field-error" id="cost-error-${i}" aria-live="polite"></div>
         </div>
       </div>
 
@@ -1865,6 +1953,29 @@ document.addEventListener('focusin', (e) => {
 function setPrize(i, key, val) {
   state.prizes[i][key] = val;
   if (key === 'quantity' || key === 'label') updatePrizeCardStats();
+}
+
+// Price input: blank = unknown (null), invalid = NaN (blocks save until fixed)
+function setPrizeCost(i, el) {
+  state.prizes[i].unitCost = parseCostInput(el.value);
+  const err = document.getElementById('cost-error-' + i);
+  if (err) {
+    err.textContent = Number.isNaN(state.prizes[i].unitCost) ? 'ใส่ตัวเลข 0 ขึ้นไป' : '';
+    err.classList.toggle('is-error', Number.isNaN(state.prizes[i].unitCost));
+  }
+}
+
+function setPrizeVendor(i, checked) {
+  state.prizes[i].vendorSponsored = checked;
+  if (checked) {
+    state.prizes[i].unitCost = null;
+    document.getElementById('cost-' + i).value = '';
+    document.getElementById('cost-' + i).disabled = true;
+    const err = document.getElementById('cost-error-' + i);
+    if (err) { err.textContent = ''; err.classList.remove('is-error'); }
+  } else {
+    document.getElementById('cost-' + i).disabled = false;
+  }
 }
 
 // Stock adjust panel: staff type only the change; adjustStock() turns it into the running total
@@ -1975,7 +2086,9 @@ function addPrize() {
     id: 'prize_' + Date.now(),
     label: '',
     quantity: 10,
-    iconName: 'gift'
+    iconName: 'gift',
+    unitCost: null,
+    vendorSponsored: false
   };
   state.prizes.push(newPrize);
   renderPrizes();

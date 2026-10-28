@@ -1,0 +1,44 @@
+Permission allow rule (.claude/settings.local.json): Bash(/usr/bin/grep -n "prize-form\\|prizeLabel\\|prize-label\\|function.*[Pp]rize\\|editPrize\\|savePrize\\|addPrize\\|deletePrize\\|renderPrizes" admin.html) has a wildcard before the rest of the command, so it also matches any options inserted at that position and approves them without a prompt. Replace that * with the exact value you mean, or only use * after the subcommand.
+All checks pass. Here's my report.
+
+## Report
+
+### Files changed
+- **`admin.html`** only (as allowed).
+
+### What I did
+
+1. **Script tag** — added `<script src="js/prizeCost.js">` after `js/fieldAnswers.js`, before `js/exportRows.js` (module order ensures `parseCostInput`/`prizeCostRows`/`stripPrivatePrizeFields` globals exist before the inline app script runs).
+
+2. **Prize card UI** (`renderPrizes()`) — added a "ราคา/ชิ้น" box below the stock box with:
+   - "ราคา/ชิ้น (บาท)" **text** input (`inputmode="decimal"`, `autocomplete="off"`) whose value attribute is a manual parse (`parseCostInput`, not `Number(value)`) so typing `1,250` / `+5` is preserved between re-renders.
+   - "vendor สนับสนุน (ฟรี)" checkbox — checking it clears + disables the price input (and sets `vendorSponsored = true`, `unitCost = null`); unchecking re-enables it.
+   - Per-field error text `cost-error-<i>` (`aria-live="polite"`) showing "ใส่ตัวเลข 0 ขึ้นไป" on invalid input.
+   - `addPrize()` now seeds new prizes with `unitCost: null`, `vendorSponsored: false`.
+
+3. **Load** (`loadFromServer()`) — after `getPrizeUsage`, fetch `prize_costs` with `select('prize_id, unit_cost, vendor_sponsored').eq('event_id', id)` via **`{ error }` check** (never throws — the try's catch would reset `state.prizes` to fallback defaults and the next save would delete real prizes via `syncPrizesTable`). On error it logs + `toast('โหลดราคาของรางวัลไม่สำเร็จ', 'err')` and leaves cost fields unset. On success it maps rows onto `state.prizes[i].unitCost` / `vendorSponsored` (null unit_cost → `null`, not `0`).
+
+4. **Save** (`saveToServer()`):
+   - `events.config` now gets `prizes: stripPrivatePrizeFields(state.prizes)` — no `unitCost`/`vendorSponsored` reach `events.config`.
+   - A blocking validation: any non-vendor prize with `Number.isNaN(unitCost)` (typed-but-invalid/negative) re-shows the field error "ใส่ตัวเลข 0 ขึ้นไป" in `span` (not colour only) and aborts the save with a toast, re-enabling the button.
+   - After `syncPrizesTable` succeeds, upserts `prizeCostRows(state.currentEventId, state.prizes)` into `prize_costs` with `onConflict: 'prize_id,event_id'` (rebuild of the whole map, so stale rows don't linger). On error it logs + `toast('บันทึกราคาไม่สำเร็จ', 'err')` — the config save still counts and the success path continues.
+
+5. **Handlers** — `setPrizeCost(i, el)` (parses input into state, toggles the field error) and `setPrizeVendor(i, checked)` (clear+disable / re-enable price input), placed after `setPrize()`, matching the enclosing style. No top-level names collide with other loaded scripts.
+
+### Verify command output
+```
+node --test js/  →  106 pass, 0 fail
+grep -q "stripPrivatePrizeFields(state.prizes)" admin.html  →  PASS
+grep -q "from('prize_costs')" admin.html                    →  PASS
+```
+The inline `<script>` also passes `node --check`.
+
+### Acceptance mapping
+- After save, `events.config.prizes[*]` has no `unitCost`/`vendorSponsored` ✅ (stripped)
+- Reload shows saved values ✅ (load maps `prize_costs` back onto state)
+- A `prize_costs` error does not change `state.prizes` ✅ (error check leaks nothing; the catch path that resets prizes is never entered)
+
+### Anything I was unsure about
+- The **vendor checkbox label uses a general-purpose `.field-allow-other` class** (checked-box style) rather than new dedicated CSS — it matched the intended look and kept the diff smaller; the "ราคา/ชิ้น" box itself uses new `.cost-*` classes.
+- I decided to **block** the save on invalid price (task says invalid "block save") rather than the looser "on cost-upsert error config save still counts" — both requirements are in the text; it reads that cost-value errors block, while the write failing still counts. If you'd prefer invalid prices to save (leaving the row unset) instead of blocking, that's a one-line change.
+- I could not run `bash supabase/tests/run.sh` (needs Docker, per instructions — Claude runs it). I only touched `admin.html`, no schema/JS module files changed.
