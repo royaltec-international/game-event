@@ -239,11 +239,11 @@
     .dash-cost-line strong { color: var(--text); }
     .dash-cost-warning { margin-top: 9px; }
     .dash-export-row { display: flex; justify-content: flex-end; margin-top: 14px; }
-    .dash-more-toggle { display: none; }
+    .btn.dash-more-toggle { display: none; }
     .dash-empty { padding: 40px 20px; border: 1px dashed var(--border-strong); border-radius: var(--radius); background: var(--surface); color: var(--text-muted); text-align: center; }
     .dash-empty-inline { color: var(--text-muted); text-align: center; }
     .dash-year-toolbar { align-items: flex-start; }
-    .dash-year-picker { display: flex; align-items: center; gap: 8px; color: var(--text); font-size: 18px; font-weight: 700; }
+    .dash-year-picker { display: flex; align-items: center; gap: 8px; color: var(--text); font-size: 18px; font-weight: 700; white-space: nowrap; }
     .dash-year-picker select { min-width: 112px; font-size: 16px; }
     .dash-year-kpis { grid-template-columns: repeat(5, minmax(0, 1fr)); }
     .dash-year-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.65fr); gap: 14px; }
@@ -628,7 +628,7 @@
       .dash-primary-grid .dash-hourly { grid-row: 2; }
       .dash-bar-row { grid-template-columns: minmax(82px, 1fr) minmax(70px, 1fr) minmax(100px, auto); }
       .dash-hour-plot { height: 72px; }
-      .dash-more-toggle { display: inline-flex; justify-content: center; width: 100%; margin-top: 14px; }
+      .btn.dash-more-toggle { display: inline-flex; justify-content: center; width: 100%; margin-top: 14px; }
       .dash-more { display: none; }
       .dash-more.open { display: block; }
       .dash-export-row .btn { width: 100%; min-height: 44px; }

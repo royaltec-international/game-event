@@ -455,7 +455,7 @@ var DashboardView = (function dashboardViewModule() {
     const newReturning = stats.newCount === null
       ? 'นับไม่ได้'
       : `${dashboardFormatInteger(stats.newCount)} / ${dashboardFormatInteger(stats.returningCount)}`;
-    const newReturningSub = stats.newCount === null ? 'ไม่มีเบอร์/อีเมล' : 'คนใหม่ / เคยมางานเราแล้ว';
+    const newReturningSub = stats.newCount === null ? 'ไม่มีเบอร์/อีเมล' : '';
     const contactableCost = stats.pdpaOff ? 'ไม่ได้เปิด PDPA' : dashboardFormatMoney(stats.cost.perContactable);
     const kpis = comparison
       ? dashboardRenderCompareKpis(stats, otherData.stats, comparison, otherData.event.name)
