@@ -2,7 +2,14 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
-const { kpiTile, barRow, hourlyChart } = require('./dashboardView.js');
+const {
+  kpiTile,
+  barRow,
+  hourlyChart,
+  monthlyChart,
+  pairedBarRow,
+  compareKpiSub,
+} = require('./dashboardView.js');
 
 test('loads after dashboard dependencies in the shared classic-script scope', () => {
   const context = vm.createContext({});
@@ -53,4 +60,30 @@ test('hourly chart renders all 24 hours on one scale with an optional overlay', 
   assert.match(html, /data-hour="4"/);
   assert.match(html, /<polyline/);
   assert.match(html, /ชั่วโมงพีค 03:00 · 5 คน/);
+});
+
+test('monthly chart renders all twelve months on one common scale', () => {
+  const values = [5, 0, 10, 0, 0, 0, 2, 0, 0, 4, 0, 0];
+  const html = monthlyChart(values);
+
+  assert.equal((html.match(/class="dash-month-bar"/g) || []).length, 12);
+  assert.match(html, /height:50%/);
+  assert.match(html, /ม\.ค\./);
+  assert.match(html, /ธ\.ค\./);
+  assert.doesNotMatch(html, /NaN|Infinity/);
+});
+
+test('paired bar row shares one scale and marks a missing event with a dash', () => {
+  const html = pairedBarRow('<Brand>', 5, null, 10, '5 / —');
+
+  assert.match(html, /&lt;Brand&gt;/);
+  assert.match(html, /dash-paired-a[^>]*style="width:50%"/);
+  assert.match(html, /dash-paired-b missing[^>]*style="width:0%"/);
+  assert.match(html, /5 \/ —/);
+});
+
+test('compare KPI subtext includes direction, percentage, and cost warning', () => {
+  assert.equal(compareKpiSub('Expo 2025', 80, 25, true), 'Expo 2025: 80 ▲ 25% ⚠ ต้นทุนไม่ครบ');
+  assert.equal(compareKpiSub('Expo 2025', 0, null, false), 'Expo 2025: 0');
+  assert.equal(compareKpiSub('Expo 2025', 100, -5, false), 'Expo 2025: 100 ▼ 5%');
 });

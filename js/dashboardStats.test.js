@@ -12,6 +12,9 @@ const {
   choiceSummary,
   hourly,
   eventStats,
+  eventsInYear,
+  yearStats,
+  compareStats,
 } = require('./dashboardStats.js');
 
 test('reads the other marker when loaded as classic browser scripts', () => {
@@ -362,4 +365,161 @@ test('event stats omit new and returning counts when phone and email are disable
 
   assert.equal(stats.newCount, null);
   assert.equal(stats.returningCount, null);
+});
+
+test('filters events by Bangkok creation year and sorts latest first-registration date first', () => {
+  const early = {
+    id: 'early',
+    created_at: '2025-12-31T18:00:00Z',
+    firstDate: '2026-01-05',
+  };
+  const late = {
+    id: 'late',
+    created_at: '2026-06-01T00:00:00Z',
+    firstDate: '2026-08-10',
+  };
+  const previousYear = {
+    id: 'previous',
+    created_at: '2025-12-31T16:00:00Z',
+    firstDate: '2025-12-31',
+  };
+
+  assert.deepEqual(eventsInYear([late, previousYear, early], 2026), [late, early]);
+});
+
+test('builds year totals with cross-event contact dedupe and incomplete cost coverage', () => {
+  const result = yearStats({
+    events: [
+      {
+        id: 'one',
+        name: 'มกราคม',
+        created_at: '2026-01-01T00:00:00Z',
+        config: {
+          pdpa: { enabled: true },
+          brandsCheckbox: { enabled: true, items: ['A', 'B'] },
+        },
+      },
+      {
+        id: 'two',
+        name: 'มีนาคม',
+        created_at: '2026-03-01T00:00:00Z',
+        config: {
+          pdpa: { enabled: false },
+          brandsCheckbox: { enabled: true, items: ['A', 'C'] },
+        },
+      },
+    ],
+    registrationsByEvent: {
+      one: [{
+        phone: '081-234-5678',
+        pdpa_consent: 'YES',
+        brands: 'A',
+        created_at: '2026-01-10T03:00:00Z',
+      }],
+      two: [{
+        phone: '0812345678',
+        pdpa_consent: 'N/A',
+        brands: 'A',
+        created_at: '2027-03-20T03:00:00Z',
+      }],
+    },
+    prizesByEvent: {
+      one: [{ id: 'known', label: 'Known', quantity: 10, used: 1, remaining: 9 }],
+      two: [{ id: 'unknown', label: 'Unknown', quantity: 10, used: 1, remaining: 9 }],
+    },
+    costsByEvent: {
+      one: [{ prize_id: 'known', unit_cost: 20, vendor_sponsored: false }],
+      two: [],
+    },
+  });
+
+  assert.equal(result.leads, 2);
+  assert.equal(result.uniqueContacts, 1);
+  assert.equal(result.contactable, 1);
+  assert.equal(result.eventCount, 2);
+  assert.deepEqual(result.cost, { total: 20, perLead: 10, complete: false });
+  assert.deepEqual(result.table.map(row => ({
+    eventId: row.eventId,
+    firstDate: row.firstDate,
+    contactable: row.contactable,
+    costComplete: row.costComplete,
+  })), [
+    { eventId: 'two', firstDate: '2027-03-20', contactable: null, costComplete: false },
+    { eventId: 'one', firstDate: '2026-01-10', contactable: 1, costComplete: true },
+  ]);
+  assert.deepEqual(result.brandsTop5[0], { name: 'A', count: 2 });
+  assert.equal(result.monthly.length, 12);
+  assert.equal(result.monthly[0], 1);
+  assert.equal(result.monthly[2], 1);
+});
+
+test('compares KPI deltas and sums duplicate trimmed prize and choice labels', () => {
+  const aHours = Array(24).fill(0);
+  const bHours = Array(24).fill(0);
+  aHours[10] = 8;
+  bHours[10] = 4;
+  const result = compareStats({
+    leads: 120,
+    contactable: 60,
+    newCount: 90,
+    returningCount: 30,
+    given: 8,
+    soldOut: 2,
+    lowCount: 1,
+    cost: {
+      perLead: 10,
+      perContactable: 20,
+      coverage: { known: 1, given: 2 },
+    },
+    brands: { rows: [{ name: 'A', count: 3 }] },
+    prizes: [
+      { label: 'Gift', used: 2 },
+      { label: ' Gift ', used: 3 },
+      { label: 'Only A', used: 9 },
+    ],
+    choices: [
+      { label: 'Sector', rows: [{ option: 'Factory', count: 2 }] },
+      { label: ' Sector ', rows: [{ option: 'Factory ', count: 1 }] },
+    ],
+    hourly: { total: aHours },
+  }, {
+    leads: 100,
+    contactable: 0,
+    newCount: 70,
+    returningCount: 30,
+    given: 4,
+    soldOut: 0,
+    lowCount: 0,
+    cost: {
+      perLead: 8,
+      perContactable: null,
+      coverage: { known: 1, given: 1 },
+    },
+    brands: { rows: [{ name: ' A ', count: 5 }, { name: 'B', count: 2 }] },
+    prizes: [{ label: 'Gift', used: 4 }, { label: 'Only B', used: 7 }],
+    choices: [{
+      label: 'Sector',
+      rows: [{ option: 'Factory', count: 4 }, { option: 'Retail', count: 1 }],
+    }],
+    hourly: { total: bHours },
+  });
+
+  assert.deepEqual(result.kpis.find(row => row.key === 'leads'), {
+    key: 'leads', a: 120, b: 100, deltaPct: 20,
+  });
+  assert.equal(result.kpis.find(row => row.key === 'contactable').deltaPct, null);
+  assert.deepEqual(result.brands, [
+    { name: 'A', a: 3, b: 5 },
+    { name: 'B', a: null, b: 2 },
+  ]);
+  assert.deepEqual(result.prizesByLabel, [{ label: 'Gift', a: 5, b: 4 }]);
+  assert.deepEqual(result.choices, [{
+    label: 'Sector',
+    rows: [
+      { option: 'Factory', a: 3, b: 4 },
+      { option: 'Retail', a: 0, b: 1 },
+    ],
+  }]);
+  assert.deepEqual(result.hourly, { a: aHours, b: bHours });
+  assert.deepEqual(result.costComplete, { a: false, b: true });
 });

@@ -322,6 +322,263 @@ function eventStats({ event, registrations, prizes, costs, priorContactKeys }) {
   };
 }
 
+function dashboardFirstDate(event) {
+  const preferred = event && (event.firstDate || event.firstRegistrationDate);
+  if (preferred) return String(preferred);
+  if (!event || !event.created_at) return '';
+  const timestamp = new Date(event.created_at);
+  return Number.isFinite(timestamp.getTime()) ? bangkokParts(event.created_at).date : '';
+}
+
+function eventsInYear(events, year) {
+  const wantedYear = Number(year);
+  return (events || []).filter(event => {
+    const timestamp = new Date(event && event.created_at);
+    return Number.isFinite(timestamp.getTime())
+      && bangkokParts(event.created_at).year === wantedYear;
+  }).sort((a, b) => {
+    const dateCompare = dashboardFirstDate(b).localeCompare(dashboardFirstDate(a));
+    return dateCompare || String(a.name || '').localeCompare(String(b.name || ''), 'th');
+  });
+}
+
+function dashboardEventCollectionValue(collection, eventId) {
+  if (collection instanceof Map) return collection.get(eventId) || [];
+  return collection && collection[eventId] ? collection[eventId] : [];
+}
+
+function dashboardFirstRegistrationDate(registrations) {
+  return (registrations || []).reduce((first, registration) => {
+    const timestamp = new Date(registration && registration.created_at);
+    if (!Number.isFinite(timestamp.getTime())) return first;
+    const date = bangkokParts(registration.created_at).date;
+    return !first || date < first ? date : first;
+  }, '');
+}
+
+function dashboardUniqueContactCount(registrations) {
+  const parents = [];
+  const keyOwners = new Map();
+
+  function find(index) {
+    let root = index;
+    while (parents[root] !== root) root = parents[root];
+    while (parents[index] !== index) {
+      const next = parents[index];
+      parents[index] = root;
+      index = next;
+    }
+    return root;
+  }
+
+  function union(a, b) {
+    const rootA = find(a);
+    const rootB = find(b);
+    if (rootA !== rootB) parents[rootB] = rootA;
+  }
+
+  (registrations || []).forEach(registration => {
+    const keys = contactKeys(registration);
+    if (!keys.length) return;
+    const index = parents.length;
+    parents.push(index);
+    keys.forEach(key => {
+      if (keyOwners.has(key)) union(index, keyOwners.get(key));
+      else keyOwners.set(key, index);
+    });
+  });
+
+  return new Set(parents.map((_, index) => find(index))).size;
+}
+
+function dashboardCostIsComplete(cost) {
+  const coverage = cost && cost.coverage;
+  return !coverage || dashboardNumber(coverage.known) === dashboardNumber(coverage.given);
+}
+
+function yearStats({ events, registrationsByEvent, prizesByEvent, costsByEvent }) {
+  const allRegistrations = [];
+  const brandCounts = new Map();
+  const monthly = Array(12).fill(0);
+  let leads = 0;
+  let contactable = 0;
+  let totalCost = 0;
+  let complete = true;
+
+  const table = (events || []).map(event => {
+    const registrations = dashboardEventCollectionValue(registrationsByEvent, event.id);
+    const prizes = dashboardEventCollectionValue(prizesByEvent, event.id);
+    const costs = dashboardEventCollectionValue(costsByEvent, event.id);
+    const stats = eventStats({
+      event,
+      registrations,
+      prizes,
+      costs,
+      priorContactKeys: new Set(),
+    });
+    const costComplete = dashboardCostIsComplete(stats.cost);
+
+    leads += stats.leads;
+    if (stats.contactable !== null) contactable += stats.contactable;
+    totalCost += stats.cost.total;
+    complete = complete && costComplete;
+    allRegistrations.push(...registrations);
+    registrations.forEach(registration => {
+      const timestamp = new Date(registration && registration.created_at);
+      if (!Number.isFinite(timestamp.getTime())) return;
+      monthly[bangkokParts(registration.created_at).month - 1] += 1;
+    });
+    if (stats.brands) {
+      stats.brands.rows.forEach(row => {
+        const name = String(row.name || '').trim();
+        if (name) brandCounts.set(name, (brandCounts.get(name) || 0) + dashboardNumber(row.count));
+      });
+    }
+
+    return {
+      eventId: event.id,
+      name: event.name,
+      firstDate: dashboardFirstRegistrationDate(registrations),
+      leads: stats.leads,
+      contactable: stats.contactable,
+      given: stats.given,
+      perLead: stats.cost.perLead,
+      costComplete,
+    };
+  }).sort((a, b) => {
+    const dateA = a.firstDate || '0000-01-01';
+    const dateB = b.firstDate || '0000-01-01';
+    return dateB.localeCompare(dateA) || String(a.name || '').localeCompare(String(b.name || ''), 'th');
+  });
+
+  const brandsTop5 = [...brandCounts.entries()]
+    .map(([name, count]) => ({ name, count }))
+    .filter(row => row.count > 0)
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'th'))
+    .slice(0, 5);
+
+  return {
+    leads,
+    uniqueContacts: dashboardUniqueContactCount(allRegistrations),
+    contactable,
+    eventCount: table.length,
+    cost: {
+      total: totalCost,
+      perLead: leads > 0 ? totalCost / leads : null,
+      complete,
+    },
+    table,
+    brandsTop5,
+    monthly,
+  };
+}
+
+function dashboardTrimmedCounts(rows, labelKey, valueKey) {
+  const counts = new Map();
+  (rows || []).forEach(row => {
+    const label = String(row && row[labelKey] || '').trim();
+    if (!label) return;
+    counts.set(label, (counts.get(label) || 0) + dashboardNumber(row[valueKey]));
+  });
+  return counts;
+}
+
+function dashboardChoiceCounts(choices) {
+  const fields = new Map();
+  (choices || []).forEach(choice => {
+    const label = String(choice && choice.label || '').trim();
+    if (!label) return;
+    if (!fields.has(label)) fields.set(label, new Map());
+    const options = fields.get(label);
+    (choice.rows || []).forEach(row => {
+      const option = String(row && row.option || '').trim();
+      if (option) options.set(option, (options.get(option) || 0) + dashboardNumber(row.count));
+    });
+  });
+  return fields;
+}
+
+function dashboardHourlyTotal(stats) {
+  const total = stats && stats.hourly && stats.hourly.total;
+  return Array.from({ length: 24 }, (_, hour) => dashboardNumber(Array.isArray(total) ? total[hour] : 0));
+}
+
+function compareStats(a, b) {
+  const left = a || {};
+  const right = b || {};
+  const kpiValues = [
+    ['leads', left.leads, right.leads],
+    ['contactable', left.contactable, right.contactable],
+    ['newCount', left.newCount, right.newCount],
+    ['returningCount', left.returningCount, right.returningCount],
+    ['given', left.given, right.given],
+    ['soldOut', left.soldOut, right.soldOut],
+    ['lowCount', left.lowCount, right.lowCount],
+    ['perLead', left.cost && left.cost.perLead, right.cost && right.cost.perLead],
+    ['perContactable', left.cost && left.cost.perContactable, right.cost && right.cost.perContactable],
+  ];
+  const kpis = kpiValues.map(([key, valueA, valueB]) => {
+    const numericA = Number(valueA);
+    const numericB = Number(valueB);
+    return {
+      key,
+      a: valueA === undefined ? null : valueA,
+      b: valueB === undefined ? null : valueB,
+      deltaPct: valueA === null || valueA === undefined || valueB === null || valueB === undefined
+        || !Number.isFinite(numericA) || !Number.isFinite(numericB) || numericB === 0
+        ? null
+        : ((numericA - numericB) / numericB) * 100,
+    };
+  });
+
+  const brandsA = dashboardTrimmedCounts(left.brands && left.brands.rows, 'name', 'count');
+  const brandsB = dashboardTrimmedCounts(right.brands && right.brands.rows, 'name', 'count');
+  const brandNames = [...new Set([...brandsA.keys(), ...brandsB.keys()])];
+  const brands = brandNames.map(name => ({
+    name,
+    a: brandsA.has(name) ? brandsA.get(name) : null,
+    b: brandsB.has(name) ? brandsB.get(name) : null,
+  })).sort((rowA, rowB) => (
+    Math.max(dashboardNumber(rowB.a), dashboardNumber(rowB.b))
+      - Math.max(dashboardNumber(rowA.a), dashboardNumber(rowA.b))
+      || rowA.name.localeCompare(rowB.name, 'th')
+  ));
+
+  const prizesA = dashboardTrimmedCounts(left.prizes, 'label', 'used');
+  const prizesB = dashboardTrimmedCounts(right.prizes, 'label', 'used');
+  const prizesByLabel = [...prizesA.keys()]
+    .filter(label => prizesB.has(label))
+    .map(label => ({ label, a: prizesA.get(label), b: prizesB.get(label) }));
+
+  const choicesA = dashboardChoiceCounts(left.choices);
+  const choicesB = dashboardChoiceCounts(right.choices);
+  const choices = [...choicesA.keys()].filter(label => choicesB.has(label)).map(label => {
+    const optionsA = choicesA.get(label);
+    const optionsB = choicesB.get(label);
+    const optionNames = [...new Set([...optionsA.keys(), ...optionsB.keys()])];
+    return {
+      label,
+      rows: optionNames.map(option => ({
+        option,
+        a: optionsA.get(option) || 0,
+        b: optionsB.get(option) || 0,
+      })),
+    };
+  });
+
+  return {
+    kpis,
+    brands,
+    prizesByLabel,
+    choices,
+    hourly: { a: dashboardHourlyTotal(left), b: dashboardHourlyTotal(right) },
+    costComplete: {
+      a: dashboardCostIsComplete(left.cost),
+      b: dashboardCostIsComplete(right.cost),
+    },
+  };
+}
+
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     bangkokParts,
@@ -333,5 +590,8 @@ if (typeof module !== 'undefined' && module.exports) {
     choiceSummary,
     hourly,
     eventStats,
+    eventsInYear,
+    yearStats,
+    compareStats,
   };
 }

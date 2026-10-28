@@ -178,12 +178,17 @@
     .dash-shell h3 { margin: 16px 0 8px; color: var(--text-2); font-size: 15px; font-weight: 600; }
     .dash-crumb { margin-bottom: 8px; color: var(--text-muted); font-size: 14px; }
     .dash-crumb span { margin: 0 5px; color: var(--border-strong); }
+    .dash-crumb-link { padding: 0; border: 0; background: none; color: var(--brand); font: inherit; text-decoration: underline; cursor: pointer; }
     .dash-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
     .dash-toolbar select {
       min-width: 240px; max-width: 100%; background: #fff; border: 1px solid var(--border-strong);
       border-radius: var(--radius-sm); padding: 9px 36px 9px 12px; color: var(--text); font: inherit;
     }
     .dash-live { display: flex; align-items: center; gap: 10px; }
+    .dash-event-tools, .dash-compare-picker { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+    .dash-compare-controls { display: flex; align-items: center; }
+    .dash-compare-picker > span { color: var(--text-muted); font-size: 14px; }
+    .dash-compare-picker select { border-color: #b47718; }
     .dash-status { display: inline-flex; align-items: center; white-space: nowrap; color: var(--text-2); font-size: 13px; }
     .dash-status i { width: 9px; height: 9px; margin-right: 6px; border-radius: 50%; background: var(--success); }
     .dash-status.error { color: var(--danger); font-weight: 600; }
@@ -204,6 +209,10 @@
     .dash-bar-track { height: 16px; overflow: hidden; border-radius: 8px; background: #e1ebf2; }
     .dash-bar-fill { display: block; height: 100%; border-radius: inherit; background: var(--brand); }
     .dash-bar-fill.warn { background: #a8650a; }
+    .dash-paired-track { display: grid; gap: 3px; }
+    .dash-paired-track .dash-bar-track { height: 8px; }
+    .dash-paired-b { background: #b47718; }
+    .dash-paired-a.missing, .dash-paired-b.missing { background: transparent; }
     .dash-bar-value { min-width: 0; color: var(--text-2); font-size: 13px; text-align: right; }
     .dash-bar-value.warn { color: #784700; font-weight: 700; }
     .dash-note { margin-top: 7px; color: var(--text-muted); font-size: 13px; }
@@ -219,6 +228,10 @@
     .dash-hour-overlay polyline { fill: none; stroke: #a8650a; stroke-width: 3; stroke-dasharray: 6 4; vector-effect: non-scaling-stroke; }
     .dash-hour-axis { display: flex; gap: 3px; color: var(--text-muted); font-size: 11px; }
     .dash-hour-axis span { flex: 1 1 0; text-align: center; }
+    .dash-month-plot { display: flex; align-items: flex-end; gap: 5px; height: 90px; border-bottom: 1px solid var(--border); }
+    .dash-month-bar { flex: 1 1 0; min-width: 4px; border-radius: 3px 3px 0 0; background: var(--brand); }
+    .dash-month-axis { display: flex; gap: 5px; margin-top: 4px; color: var(--text-muted); font-size: 11px; }
+    .dash-month-axis span { flex: 1 1 0; text-align: center; }
     .dash-choice-card + .dash-choice-card { margin-top: 8px; }
     .dash-choice-title { margin-bottom: 8px; font-weight: 600; }
     .dash-choice-title span { margin-left: 5px; padding: 2px 6px; border-radius: 5px; background: var(--brand-tint); color: var(--brand); font-size: 12px; font-weight: 500; }
@@ -229,6 +242,24 @@
     .dash-more-toggle { display: none; }
     .dash-empty { padding: 40px 20px; border: 1px dashed var(--border-strong); border-radius: var(--radius); background: var(--surface); color: var(--text-muted); text-align: center; }
     .dash-empty-inline { color: var(--text-muted); text-align: center; }
+    .dash-year-toolbar { align-items: flex-start; }
+    .dash-year-picker { display: flex; align-items: center; gap: 8px; color: var(--text); font-size: 18px; font-weight: 700; }
+    .dash-year-picker select { min-width: 112px; font-size: 16px; }
+    .dash-year-kpis { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+    .dash-year-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.65fr); gap: 14px; }
+    .dash-table-wrap { overflow-x: auto; }
+    .dash-year-table { width: 100%; min-width: 760px; border-collapse: collapse; font-size: 14px; }
+    .dash-year-table th, .dash-year-table td { padding: 9px 7px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
+    .dash-year-table th { color: var(--text-muted); font-weight: 600; }
+    .dash-year-table tbody tr { cursor: pointer; }
+    .dash-year-table tbody tr:hover { background: var(--brand-tint); }
+    .dash-year-table td button { padding: 4px 0; border: 0; background: none; color: var(--brand); font: inherit; text-align: left; text-decoration: underline; cursor: pointer; }
+    .dash-year-table td.warn { color: #784700; font-weight: 700; }
+    .dash-table-bar { width: 90px; height: 8px; overflow: hidden; border-radius: 4px; background: #e1ebf2; }
+    .dash-table-bar i { display: block; height: 100%; border-radius: inherit; background: var(--brand); }
+    .dash-tag { margin-left: 5px; padding: 2px 6px; border-radius: 5px; background: var(--brand-tint); color: var(--brand); font-size: 12px; font-weight: 500; }
+    .dash-legend-current { color: var(--brand); }
+    .dash-legend-other { color: #8a5208; }
 
     @keyframes fadeIn {
       from { opacity: 0; transform: translateY(8px); }
@@ -585,12 +616,15 @@
       .dash-shell { padding: 12px; }
       .dash-toolbar { align-items: stretch; flex-direction: column; }
       .dash-toolbar label, .dash-toolbar select { width: 100%; min-width: 0; }
+      .dash-event-tools { align-items: stretch; flex-direction: column; }
+      .dash-compare-controls { display: none; }
       .dash-live { justify-content: space-between; }
       .dash-live .btn, .dash-day-tab, .dash-chip, .dash-more-toggle { min-height: 44px; }
       .dash-kpis { grid-template-columns: 1fr 1fr; }
       .dash-kpis .dash-kpi:nth-child(n+3) { display: none; }
       .dash-kpi b { font-size: 24px; }
       .dash-primary-grid, .dash-detail-grid { grid-template-columns: 1fr; }
+      .dash-year-grid { grid-template-columns: 1fr; }
       .dash-primary-grid .dash-hourly { grid-row: 2; }
       .dash-bar-row { grid-template-columns: minmax(82px, 1fr) minmax(70px, 1fr) minmax(100px, auto); }
       .dash-hour-plot { height: 72px; }
@@ -598,6 +632,7 @@
       .dash-more { display: none; }
       .dash-more.open { display: block; }
       .dash-export-row .btn { width: 100%; min-height: 44px; }
+      .dash-year-table td button, .dash-crumb-link { min-height: 44px; }
     }
 
     @media (max-width: 480px) {
