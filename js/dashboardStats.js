@@ -113,8 +113,9 @@ function costSummary(rows, leads, contactable) {
   const contactableCount = contactable === null ? null : dashboardNumber(contactable);
   return {
     total,
-    perLead: leadCount > 0 ? total / leadCount : null,
-    perContactable: contactableCount !== null && contactableCount > 0
+    // No priced prize at all → no figure, not a misleading ฿0
+    perLead: leadCount > 0 && known > 0 ? total / leadCount : null,
+    perContactable: known > 0 && contactableCount !== null && contactableCount > 0
       ? total / contactableCount
       : null,
     coverage: { known, given },
@@ -134,20 +135,21 @@ function brandSummary(registrations, brandItems) {
     rows.push(row);
   });
 
+  const brandNamesLongestFirst = [...rowByName.keys()].sort((a, b) => b.length - a.length);
   let otherCount = 0;
   let interested = 0;
   (registrations || []).forEach(registration => {
-    const selected = String(registration.brands || '')
-      .split(', ')
-      .map(value => value.trim())
-      .filter(Boolean);
+    // Brands are stored joined with ', ', but brand names may contain ', ' themselves
+    // (e.g. "X ( A, B )"), so match configured names inside the string instead of splitting.
+    let rest = `, ${String(registration.brands || '').trim()}, `;
     const knownForPerson = new Set();
-    let hasOther = false;
-
-    selected.forEach(name => {
-      if (rowByName.has(name)) knownForPerson.add(name);
-      else hasOther = true;
+    brandNamesLongestFirst.forEach(name => {
+      const token = `, ${name}, `;
+      if (!rest.includes(token)) return;
+      knownForPerson.add(name);
+      rest = rest.split(token).join(', ');
     });
+    const hasOther = rest.split(', ').some(value => value.trim());
     knownForPerson.forEach(name => {
       rowByName.get(name).count += 1;
     });
@@ -464,7 +466,7 @@ function yearStats({ events, registrationsByEvent, prizesByEvent, costsByEvent }
     eventCount: table.length,
     cost: {
       total: totalCost,
-      perLead: leads > 0 ? totalCost / leads : null,
+      perLead: leads > 0 && (totalCost > 0 || complete) ? totalCost / leads : null,
       complete,
     },
     table,

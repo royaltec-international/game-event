@@ -523,3 +523,22 @@ test('compares KPI deltas and sums duplicate trimmed prize and choice labels', (
   assert.deepEqual(result.hourly, { a: aHours, b: bHours });
   assert.deepEqual(result.costComplete, { a: false, b: true });
 });
+
+test('brandSummary matches brand names that themselves contain ", "', () => {
+  const items = ['Panduit ( Network, Cabling )', 'Belden'];
+  const result = brandSummary([
+    { brands: 'Panduit ( Network, Cabling ), Belden' },
+    { brands: 'Panduit ( Network, Cabling )' },
+    { brands: 'Belden, hacked' },
+  ], items);
+  const byName = Object.fromEntries(result.rows.map(r => [r.name, r.count]));
+  assert.equal(byName['Panduit ( Network, Cabling )'], 2);
+  assert.equal(byName.Belden, 2);
+  assert.equal(byName['อื่นๆ'], 1);
+});
+
+test('costSummary gives no per-lead figure when no given prize has a price', () => {
+  const s = costSummary([{ label: 'A', used: 3, costStatus: 'unknown', cost: null }], 10, 5);
+  assert.equal(s.perLead, null);
+  assert.equal(s.perContactable, null);
+});

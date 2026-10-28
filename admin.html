@@ -153,6 +153,7 @@
     }
 
     .content { padding: 28px; max-width: 960px; width: 100%; }
+    .content:has(#panel-dashboard.active) { max-width: 1440px; }
 
     /* ─── Panels ─── */
     .panel { display: none; animation: fadeIn 0.25s ease; }
@@ -204,8 +205,8 @@
     .dash-kpi small { display: block; color: var(--text-muted); font-size: 13px; }
     .dash-primary-grid, .dash-detail-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
     .dash-card { padding: 11px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: #fff; }
-    .dash-bar-row { display: grid; grid-template-columns: minmax(90px, 0.9fr) minmax(70px, 1.25fr) minmax(105px, auto); align-items: center; gap: 8px; margin: 9px 0; }
-    .dash-bar-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .dash-bar-row { display: grid; grid-template-columns: minmax(120px, 1.1fr) minmax(70px, 1.25fr) minmax(105px, auto); align-items: center; gap: 8px; margin: 9px 0; }
+    .dash-bar-name { min-width: 0; overflow-wrap: anywhere; line-height: 1.35; }
     .dash-bar-track { height: 16px; overflow: hidden; border-radius: 8px; background: #e1ebf2; }
     .dash-bar-fill { display: block; height: 100%; border-radius: inherit; background: var(--brand); }
     .dash-bar-fill.warn { background: #a8650a; }
@@ -246,7 +247,8 @@
     .dash-year-picker { display: flex; align-items: center; gap: 8px; color: var(--text); font-size: 18px; font-weight: 700; white-space: nowrap; }
     .dash-year-picker select { min-width: 112px; font-size: 16px; }
     .dash-year-kpis { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-    .dash-year-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.65fr); gap: 14px; }
+    .dash-year-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
+    .dash-year-grid > div:last-child { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; align-items: start; }
     .dash-table-wrap { overflow-x: auto; }
     .dash-year-table { width: 100%; min-width: 760px; border-collapse: collapse; font-size: 14px; }
     .dash-year-table th, .dash-year-table td { padding: 9px 7px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
