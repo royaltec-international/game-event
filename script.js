@@ -268,7 +268,8 @@
     const FULL_WIDTH_KEYS = ['email', 'company'];
 
     enabledFields.forEach(f => {
-      const isFull = FULL_WIDTH_KEYS.includes(f.key) || f.fullWidth;
+      const choiceType = isChoiceType(f.type);
+      const isFull = FULL_WIDTH_KEYS.includes(f.key) || f.fullWidth || choiceType;
       const div = document.createElement('div');
       div.className = `form-group${isFull ? ' full-width' : ''}`;
 
@@ -276,22 +277,83 @@
         ? 'inputmode="numeric" maxlength="10"'
         : f.type === 'email' ? 'autocomplete="email"' : '';
 
+      let controlHtml;
+      if (choiceType) {
+        const options = [
+          ...(f.options || []),
+          ...(f.allowOther ? [OTHER] : []),
+        ];
+        const otherInput = f.allowOther ? `
+          <input
+            id="field-${htmlEsc(f.key)}-other"
+            class="form-input choice-other"
+            placeholder="โปรดระบุ"
+            hidden
+            aria-hidden="true"
+          />` : '';
+
+        if (f.type === 'dropdown') {
+          const optionHtml = options.map(option =>
+            `<option value="${htmlEsc(option)}">${htmlEsc(option)}</option>`
+          ).join('');
+          controlHtml = `
+            <select
+              id="field-${htmlEsc(f.key)}"
+              name="${htmlEsc(f.key)}"
+              class="form-input"
+              data-key="${htmlEsc(f.key)}"
+              data-type="dropdown"
+              data-required="${f.required ? 'true' : 'false'}"
+            >
+              <option value="">${htmlEsc(f.placeholder || '— เลือก —')}</option>
+              ${optionHtml}
+            </select>
+            ${otherInput}`;
+        } else {
+          const optionHtml = options.map(option => `
+            <label class="choice-item">
+              <input
+                type="${htmlEsc(f.type)}"
+                name="${htmlEsc(f.key)}"
+                value="${htmlEsc(option)}"
+              >
+              <span>${htmlEsc(option)}</span>
+            </label>`).join('');
+          controlHtml = `
+            <div
+              id="field-${htmlEsc(f.key)}"
+              class="choice-group"
+              role="group"
+              aria-labelledby="label-${htmlEsc(f.key)}"
+              data-key="${htmlEsc(f.key)}"
+              data-type="${htmlEsc(f.type)}"
+              data-required="${f.required ? 'true' : 'false'}"
+            >
+              ${optionHtml}
+              ${otherInput}
+            </div>`;
+        }
+      } else {
+        controlHtml = `
+          <input
+            id="field-${htmlEsc(f.key)}"
+            name="${htmlEsc(f.key)}"
+            type="${htmlEsc(f.type || 'text')}"
+            class="form-input"
+            placeholder="${htmlEsc(f.placeholder || '')}"
+            data-key="${htmlEsc(f.key)}"
+            data-type="${htmlEsc(f.type || 'text')}"
+            data-required="${f.required ? 'true' : 'false'}"
+            ${f.required ? 'required' : ''}
+            ${extraAttrs}
+          />`;
+      }
+
       div.innerHTML = `
-        <label class="form-label" for="field-${htmlEsc(f.key)}">
+        <label id="label-${htmlEsc(f.key)}" class="form-label" for="field-${htmlEsc(f.key)}">
           ${htmlEsc(f.label)}${f.required ? ' <span class="required">*</span>' : ''}
         </label>
-        <input
-          id="field-${htmlEsc(f.key)}"
-          name="${htmlEsc(f.key)}"
-          type="${htmlEsc(f.type || 'text')}"
-          class="form-input"
-          placeholder="${htmlEsc(f.placeholder || '')}"
-          data-key="${htmlEsc(f.key)}"
-          data-type="${htmlEsc(f.type || 'text')}"
-          data-required="${f.required ? 'true' : 'false'}"
-          ${f.required ? 'required' : ''}
-          ${extraAttrs}
-        />
+        ${controlHtml}
         <span id="error-${htmlEsc(f.key)}" class="field-error"></span>
       `;
       container.appendChild(div);
@@ -360,6 +422,46 @@
     return `กรุณากรอก ${field.label} (อย่างน้อย 2 ตัวอักษร)`;
   }
 
+  function readFieldAnswer(field) {
+    const input = document.getElementById(`field-${field.key}`);
+    const otherInput = document.getElementById(`field-${field.key}-other`);
+    if (!input) return { value: field.type === 'checkbox' ? [] : '', other: '' };
+
+    if (field.type === 'checkbox') {
+      return {
+        value: [...input.querySelectorAll('input[type="checkbox"]:checked')].map(el => el.value),
+        other: otherInput ? otherInput.value : '',
+      };
+    }
+    if (field.type === 'radio') {
+      const selected = input.querySelector('input[type="radio"]:checked');
+      return { value: selected ? selected.value : '', other: otherInput ? otherInput.value : '' };
+    }
+    return { value: input.value, other: otherInput ? otherInput.value : '' };
+  }
+
+  function syncOtherInput(field, value) {
+    if (!field.allowOther) return;
+    const otherInput = document.getElementById(`field-${field.key}-other`);
+    if (!otherInput) return;
+    const selected = Array.isArray(value) ? value.includes(OTHER) : value === OTHER;
+    otherInput.hidden = !selected;
+    otherInput.setAttribute('aria-hidden', String(!selected));
+  }
+
+  function validateRenderedField(field) {
+    const answer = readFieldAnswer(field);
+    if (isChoiceType(field.type)) {
+      const message = validateAnswer(field, answer.value, answer.other);
+      showFieldError(field.key, Boolean(message), message);
+      return !message;
+    }
+    if (!field.required) return true;
+    const ok = validateFieldValue(field, answer.value);
+    showFieldError(field.key, !ok, getFieldErrorMsg(field));
+    return ok;
+  }
+
   function showFieldError(key, show, msg) {
     const errEl = document.getElementById(`error-${key}`);
     if (!errEl) return;
@@ -375,14 +477,9 @@
     const pdpa   = WHEEL_CONFIG.pdpa           || { enabled: false };
     let valid = true;
 
-    // Validate text/email/tel/number fields
+    // Validate configured fields
     fields.forEach(f => {
-      if (!f.required) return;
-      const input = document.getElementById(`field-${f.key}`);
-      if (!input) return;
-      const ok = validateFieldValue(f, input.value);
-      showFieldError(f.key, !ok, getFieldErrorMsg(f));
-      if (!ok) valid = false;
+      if (!validateRenderedField(f)) valid = false;
     });
 
     // Validate brands (if required)
@@ -410,18 +507,14 @@
     const BASE_KEYS = ['firstName', 'lastName', 'email', 'phone', 'company', 'position'];
 
     const data = {};
-    const customFields = {};
 
     fields.forEach(f => {
-      const input = document.getElementById(`field-${f.key}`);
-      if (!input) return;
       if (BASE_KEYS.includes(f.key)) {
-        data[f.key] = input.value;
-      } else {
-        // Custom field — label เป็น column header ใน Google Sheet
-        customFields[f.label || f.key] = input.value;
+        data[f.key] = readFieldAnswer(f).value;
       }
     });
+
+    const customFields = buildCustomFields(fields, readFieldAnswer);
 
     // Brands — comma-separated
     if (brands.enabled) {
@@ -448,6 +541,28 @@
     fields.forEach(f => {
       const input = document.getElementById(`field-${f.key}`);
       if (!input) return;
+
+      if (isChoiceType(f.type)) {
+        const validateChoice = () => {
+          const answer = readFieldAnswer(f);
+          syncOtherInput(f, answer.value);
+          const message = validateAnswer(f, answer.value, answer.other);
+          showFieldError(f.key, Boolean(message), message);
+        };
+        input.addEventListener('change', validateChoice);
+
+        const otherInput = document.getElementById(`field-${f.key}-other`);
+        if (otherInput) {
+          otherInput.addEventListener('blur', validateChoice);
+          otherInput.addEventListener('input', () => {
+            if (otherInput.classList.contains('error') || input.classList.contains('error')) {
+              validateChoice();
+            }
+          });
+        }
+        return;
+      }
+
       input.addEventListener('blur', () => {
         if (f.required) showFieldError(f.key, !validateFieldValue(f, input.value), getFieldErrorMsg(f));
       });

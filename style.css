@@ -334,6 +334,53 @@ body[data-view="not-found"] .steps { display: none; }
 
 .field-error.visible { display: block; }
 
+/* ---------- Choice Fields ---------- */
+.choice-group {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+
+.choice-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 10px 12px;
+  background: var(--field);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-input);
+  cursor: pointer;
+  font-size: 15px;
+  color: var(--text);
+  transition: border-color var(--transition), background var(--transition);
+  user-select: none;
+  overflow-wrap: anywhere;
+}
+
+.choice-item:has(input:checked) {
+  border-color: var(--brand);
+  background: var(--brand-tint);
+}
+
+.choice-item input[type="checkbox"],
+.choice-item input[type="radio"] {
+  accent-color: var(--brand);
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.choice-group.error .choice-item {
+  border-color: var(--error);
+  background: var(--error-tint);
+}
+
+.choice-other {
+  margin-top: 2px;
+}
+
 /* ---------- Brands Checkbox Section ---------- */
 .brands-section {
   margin-top: 20px;
