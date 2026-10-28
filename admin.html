@@ -521,8 +521,8 @@
       padding: 10px 14px; border-bottom: 1px solid var(--border);
       background: var(--surface2); border-radius: var(--radius) var(--radius) 0 0;
     }
-    .field-card-header-left { display: flex; align-items: center; gap: 10px; }
-    .field-card-title { font-size: 14px; font-weight: 600; color: var(--text); }
+    .field-card-header-left { display: flex; align-items: center; gap: 10px; min-width: 0; flex-wrap: wrap; }
+    .field-card-title { font-size: 14px; font-weight: 600; color: var(--text); overflow-wrap: anywhere; }
     .field-card-actions { display: flex; gap: 4px; align-items: center; }
     .field-card-body { padding: 12px 14px; }
 
@@ -530,6 +530,40 @@
       display: grid;
       grid-template-columns: 2fr 2fr 1fr auto;
       gap: 10px; align-items: end;
+    }
+
+    .field-type-hint {
+      color: var(--text-muted); font-size: 13px; line-height: 1.45; margin-top: 4px;
+    }
+    .field-options-editor {
+      margin-top: 12px; padding: 12px; border: 1px solid var(--border);
+      border-radius: var(--radius-sm); background: var(--surface2);
+    }
+    .field-options-label { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
+    .field-option-row {
+      display: grid; grid-template-columns: minmax(0, 1fr) repeat(3, 44px);
+      gap: 6px; align-items: center; margin-bottom: 8px;
+    }
+    .field-option-row input { min-width: 0; }
+    .field-option-btn { min-width: 44px; min-height: 44px; padding: 6px; }
+    .field-options-actions {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 12px; flex-wrap: wrap;
+    }
+    .field-allow-other {
+      display: flex; align-items: center; gap: 8px; min-height: 44px;
+      margin: 0; color: var(--text); font-size: 14px; cursor: pointer;
+    }
+    .field-allow-other input { width: 20px; height: 20px; accent-color: var(--brand); }
+    .field-options-actions .btn { min-height: 44px; }
+
+    @media (max-width: 700px) {
+      .field-grid-4 { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 480px) {
+      .field-grid-4 { grid-template-columns: 1fr; }
+      .field-card-body { padding: 12px; }
+      .field-options-editor { padding: 10px; }
     }
 
     .base-badge {
@@ -1521,6 +1555,17 @@ async function saveToServer() {
   
   try {
     syncGeneral();
+
+    const invalidField = state.formFields
+      .filter(field => field.enabled !== false && !field.isBase)
+      .map(field => ({ field, message: validateFieldConfig(field) }))
+      .find(result => result.message);
+    if (invalidField) {
+      setSyncStatus('error', 'ข้อมูล field ไม่ครบ');
+      toast(`${invalidField.field.label || invalidField.field.key}: ${invalidField.message}`, 'err');
+      btn.disabled = false;
+      return;
+    }
     
     const config = {
       eventName:      state.eventName || 'Default Event',
@@ -2010,6 +2055,8 @@ function renderFormPanel() {
 }
 
 // ── Form Fields ────────────────────────────────────────────
+const adminFieldInitialTypes = new WeakMap();
+
 function renderFormFields() {
   const list = document.getElementById('form-fields-list');
   if (!list) return;
@@ -2021,9 +2068,47 @@ function renderFormFields() {
 
   list.innerHTML = fields.map((f, i) => {
     const isBase = f.isBase;
-    const typeOptions = ['text','email','tel','number'].map(t =>
-      `<option value="${t}"${f.type===t?' selected':''}>${t}</option>`
+    if (!adminFieldInitialTypes.has(f)) adminFieldInitialTypes.set(f, f.type);
+    const typeLabels = {
+      text: 'ข้อความ',
+      email: 'อีเมล',
+      tel: 'เบอร์โทร',
+      number: 'ตัวเลข',
+      checkbox: 'เลือกได้หลายข้อ (checkbox)',
+      dropdown: 'รายการเลือก (dropdown)',
+      radio: 'เลือกข้อเดียว (radio)',
+    };
+    const typeOptions = Object.entries(typeLabels).map(([type, label]) =>
+      `<option value="${type}"${f.type===type?' selected':''}>${label}</option>`
     ).join('');
+    const choiceType = isChoiceType(f.type);
+    const showPlaceholder = f.type !== 'checkbox' && f.type !== 'radio';
+    const typeChangedHint = !isBase
+      && state.registrations.length > 0
+      && adminFieldInitialTypes.get(f) !== f.type;
+    const optionsEditor = choiceType ? `
+      <div class="field-options-editor">
+        <div class="field-options-label">ตัวเลือก</div>
+        ${(f.options || []).map((option, j) => `
+          <div class="field-option-row">
+            <input class="opt" type="text" value="${esc(option)}" placeholder="ตัวเลือก ${j + 1}"
+              oninput="setFFOption(${i},${j},this.value)" />
+            <button class="btn btn-outline btn-icon field-option-btn" type="button"
+              onclick="moveFFOption(${i},${j},-1)" title="เลื่อนขึ้น" ${j===0?'disabled':''}>↑</button>
+            <button class="btn btn-outline btn-icon field-option-btn" type="button"
+              onclick="moveFFOption(${i},${j},1)" title="เลื่อนลง" ${j===(f.options || []).length-1?'disabled':''}>↓</button>
+            <button class="btn btn-danger btn-icon field-option-btn" type="button"
+              onclick="removeFFOption(${i},${j})" title="ลบตัวเลือก">✕</button>
+          </div>`).join('')}
+        <div class="field-options-actions">
+          <button class="btn btn-outline" type="button" onclick="addFFOption(${i})">+ เพิ่มตัวเลือก</button>
+          <label class="field-allow-other">
+            <input type="checkbox" ${f.allowOther?'checked':''}
+              onchange="setFF(${i},'allowOther',this.checked)" />
+            <span>มีตัวเลือก ${esc(OTHER)} (โปรดระบุ)</span>
+          </label>
+        </div>
+      </div>` : '';
 
     return `
     <div class="field-card${f.enabled===false?' disabled':''}" id="ff-${i}">
@@ -2050,16 +2135,17 @@ function renderFormFields() {
             <input type="text" value="${esc(f.label)}" placeholder="ชื่อ field"
               oninput="setFF(${i},'label',this.value)" />
           </div>
-          <div class="form-group">
+          ${showPlaceholder ? `<div class="form-group">
             <label>Placeholder</label>
             <input type="text" value="${esc(f.placeholder||'')}" placeholder="ข้อความตัวอย่าง"
               oninput="setFF(${i},'placeholder',this.value)" />
-          </div>
+          </div>` : ''}
           <div class="form-group">
             <label>ประเภท</label>
             <select onchange="setFF(${i},'type',this.value)"${isBase?' disabled':''}>
               ${typeOptions}
             </select>
+            ${typeChangedHint ? '<div class="field-type-hint">คำตอบเก่ายังอยู่ แต่ dashboard จะนับตามตัวเลือกใหม่</div>' : ''}
           </div>
           <div class="form-group" style="align-items:center;">
             <label>บังคับกรอก</label>
@@ -2070,14 +2156,28 @@ function renderFormFields() {
             </label>
           </div>
         </div>
+        ${optionsEditor}
       </div>
     </div>`;
   }).join('');
 }
 
 function setFF(i, key, val) {
-  if (!state.formFields[i]) return;
-  state.formFields[i][key] = val;
+  const field = state.formFields[i];
+  if (!field) return;
+  const previousType = field.type;
+  field[key] = val;
+  if (key === 'type') {
+    if (isChoiceType(val) && !isChoiceType(previousType)) {
+      field.options = ['ตัวเลือก 1'];
+      field.allowOther = false;
+    } else if (!isChoiceType(val)) {
+      delete field.options;
+      delete field.allowOther;
+    }
+    renderFormFields();
+    return;
+  }
   if (key === 'enabled') {
     const card = document.getElementById(`ff-${i}`);
     if (card) card.classList.toggle('disabled', !val);
@@ -2086,6 +2186,35 @@ function setFF(i, key, val) {
     const titleEl = document.querySelector(`#ff-${i} .field-card-title`);
     if (titleEl) titleEl.textContent = val || state.formFields[i].key;
   }
+}
+
+function setFFOption(i, j, val) {
+  const options = state.formFields[i]?.options;
+  if (!options || j < 0 || j >= options.length) return;
+  options[j] = val;
+}
+
+function moveFFOption(i, j, dir) {
+  const options = state.formFields[i]?.options;
+  const target = j + dir;
+  if (!options || target < 0 || target >= options.length) return;
+  [options[j], options[target]] = [options[target], options[j]];
+  renderFormFields();
+}
+
+function removeFFOption(i, j) {
+  const options = state.formFields[i]?.options;
+  if (!options || j < 0 || j >= options.length) return;
+  options.splice(j, 1);
+  renderFormFields();
+}
+
+function addFFOption(i) {
+  const field = state.formFields[i];
+  if (!field || !isChoiceType(field.type)) return;
+  if (!Array.isArray(field.options)) field.options = [];
+  field.options.push(`ตัวเลือก ${field.options.length + 1}`);
+  renderFormFields();
 }
 
 function moveFF(i, dir) {
