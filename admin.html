@@ -665,9 +665,13 @@
 
     .field-grid-4 {
       display: grid;
-      grid-template-columns: 2fr 2fr 1fr auto;
-      gap: 10px; align-items: end;
+      grid-template-columns: minmax(0, 2fr) minmax(0, 2fr) minmax(0, 1.6fr) auto;
+      gap: 10px; align-items: start;
     }
+    /* checkbox/radio have no placeholder: keep the same column widths, just one fewer */
+    .field-grid-4.no-placeholder { grid-template-columns: minmax(0, 2fr) minmax(0, 2fr) auto; }
+    .btn.add-field-btn { width: 100%; margin-top: 12px; border-style: dashed; justify-content: center; }
+    .field-phone-format { margin-top: 12px; max-width: 360px; }
 
     .field-type-hint {
       color: var(--text-muted); font-size: 13px; line-height: 1.45; margin-top: 4px;
@@ -695,10 +699,10 @@
     .field-options-actions .btn { min-height: 44px; }
 
     @media (max-width: 700px) {
-      .field-grid-4 { grid-template-columns: 1fr 1fr; }
+      .field-grid-4, .field-grid-4.no-placeholder { grid-template-columns: 1fr 1fr; }
     }
     @media (max-width: 480px) {
-      .field-grid-4 { grid-template-columns: 1fr; }
+      .field-grid-4, .field-grid-4.no-placeholder { grid-template-columns: 1fr; }
       .field-card-body { padding: 12px; }
       .field-options-editor { padding: 10px; }
     }
@@ -990,13 +994,13 @@
                 <div class="section-desc">เปิด/ปิด, แก้ชื่อ, เพิ่ม field ใหม่ได้เอง</div>
               </div>
             </div>
-            <button class="btn btn-outline btn-sm" onclick="addFormField()">+ เพิ่ม Field</button>
           </div>
           <div class="section-body">
             <div class="alert alert-info" style="margin-bottom:14px;">
               ℹ️ Field พื้นฐาน (ชื่อ, อีเมล ฯลฯ) สามารถเปิด/ปิดและแก้ Label ได้ &nbsp;|&nbsp; Field ที่เพิ่มเองสามารถลบได้
             </div>
             <div id="form-fields-list"></div>
+            <button class="btn btn-outline add-field-btn" onclick="addFormField()">+ เพิ่ม Field</button>
           </div>
         </div>
 
@@ -1098,6 +1102,7 @@
 <script src="js/prizeOdds.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="js/fieldAnswers.js"></script>
+<script src="js/phoneFormat.js"></script>
 <script src="js/prizeCost.js"></script>
 <script src="js/dashboardStats.js"></script>
 <script src="js/dashboardView.js"></script>
@@ -2341,6 +2346,15 @@ function renderFormFields() {
     const typeChangedHint = !isBase
       && state.registrations.length > 0
       && adminFieldInitialTypes.get(f) !== f.type;
+    const phoneFormat = phoneFormatOf(f);
+    const phoneFormatEditor = f.type === 'tel' ? `
+        <div class="form-group field-phone-format">
+          <label for="ff-phone-${i}">รูปแบบเบอร์</label>
+          <select id="ff-phone-${i}" onchange="setFF(${i},'phoneFormat',this.value)">
+            <option value="mobile"${phoneFormat === 'mobile' ? ' selected' : ''}>มือถือเท่านั้น (06/08/09 · 10 หลัก)</option>
+            <option value="any"${phoneFormat === 'any' ? ' selected' : ''}>เบอร์ทั่วไป (บ้าน/สำนักงาน/มือถือ · 9-10 หลัก)</option>
+          </select>
+        </div>` : '';
     const optionsEditor = choiceType ? `
       <div class="field-options-editor">
         <div class="field-options-label">ตัวเลือก</div>
@@ -2384,7 +2398,7 @@ function renderFormFields() {
         </div>
       </div>
       <div class="field-card-body">
-        <div class="field-grid-4">
+        <div class="field-grid-4${showPlaceholder ? '' : ' no-placeholder'}">
           <div class="form-group">
             <label>Label ที่แสดง</label>
             <input type="text" value="${esc(f.label)}" placeholder="ชื่อ field"
@@ -2411,6 +2425,7 @@ function renderFormFields() {
             </label>
           </div>
         </div>
+        ${phoneFormatEditor}
         ${optionsEditor}
       </div>
     </div>`;

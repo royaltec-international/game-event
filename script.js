@@ -410,14 +410,14 @@
     if (!field.required) return true;
     const v = String(value || '');
     if (field.type === 'email') return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
-    if (field.type === 'tel')   return /^[0-9]{9,10}$/.test(v.replace(/[-\s]/g, ''));
+    if (field.type === 'tel')   return isValidPhone(v, phoneFormatOf(field));
     if (field.type === 'number') return v.trim() !== '' && !isNaN(Number(v));
     return v.trim().length >= 2;
   }
 
   function getFieldErrorMsg(field) {
     if (field.type === 'email')  return 'รูปแบบอีเมลไม่ถูกต้อง';
-    if (field.type === 'tel')    return 'กรุณากรอกเบอร์โทร 9-10 หลัก';
+    if (field.type === 'tel')    return phoneErrorMessage(phoneFormatOf(field));
     if (field.type === 'number') return `กรุณากรอก ${field.label}`;
     return `กรุณากรอก ${field.label} (อย่างน้อย 2 ตัวอักษร)`;
   }
